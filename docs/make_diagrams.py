@@ -67,9 +67,9 @@ def er():
 
 def arch():
     fig, ax = plt.subplots(figsize=(11, 5.2)); ax.set_xlim(0, 11); ax.set_ylim(0, 5.2); ax.axis("off")
-    layers = [("Browser", "HTML5 · CSS3 · vanilla JS (cyberpunk theme)", "#e3f6fb"),
-              ("Flask routes — app.py", "CSRF · security headers · error pages · 25 routes", "#eaf0fb"),
-              ("Service layer — services/*.py", "validation · CRUD · sales transaction · reports (all SQL, bind variables)", "#f3e8f6"),
+    layers = [("Browser", "HTML5 · CSS3 · vanilla JS · Jinja2 CRUD forms", "#e3f6fb"),
+              ("Flask routes — app.py", "routes for CRUD, sales and health · error pages", "#eaf0fb"),
+              ("Service layer — services/*.py", "validation · CRUD · sales transaction (all SQL, bind variables)", "#f3e8f6"),
               ("services/database.py + python-oracledb (Thin)", "connections · error translation · config.py (.env)", "#fdeaf1"),
               ("Oracle 21c XE — XEPDB1 / appliance_app", "7 tables · view · procedure · function · trigger", "#e8f5e9")]
     for i, (t, s, c) in enumerate(layers):

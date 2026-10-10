@@ -40,8 +40,8 @@
 - 18. Transactions and inventory consistency
 - 19. SQL joins, subqueries, aggregations
 - 20. View, procedure, function, trigger
-- 21. Frontend
-- 22. Security
+- 21. CRUD and sales screens
+- 22. Database access safeguards
 - 23. Testing methodology
 - 24. Verified testing matrix
 - 25. Results and discussion
@@ -55,7 +55,7 @@
 
 # 1. Abstract
 
-The Electronic Appliance Store Management System is a database-driven web application for a retail appliance shop. A normalized Oracle 21c schema of seven tables stores categories, suppliers, products, customers, employees, sales and sale items. A Flask service layer using python-oracledb provides CRUD for four master entities, transactional multi-item sales with row-level inventory locking, a dashboard and five reports. Oracle-side logic consists of one view, one stored procedure, one stored function and one integrity trigger. Sixteen documented SQL queries demonstrate joins, subqueries, aggregation and analytic features. Security controls include bind variables, CSRF tokens, escaped output, a least-privilege database account and sanitized errors. 76 automated tests ran and passed without Oracle (fake connection); 16 live-Oracle tests are written and are BLOCKED/unverified pending a local Oracle instance. The user interface uses a cyberpunk theme (dark and light palettes).
+The Electronic Appliance Store Management System is a database-driven web application for a retail appliance shop. A normalized Oracle 21c schema of seven tables stores categories, suppliers, products, customers, employees, sales and sale items. A Flask service layer using python-oracledb provides CRUD for four master entities and transactional multi-item sales with row-level inventory locking. Oracle-side logic consists of one view, one stored procedure, one stored function and one integrity trigger. Sixteen documented SQL queries demonstrate joins, subqueries, aggregation and analytic features. The application connects with a least-privilege account and uses bind variables for all SQL. 76 automated tests ran and passed without Oracle (fake connection); 16 live-Oracle tests are written and are BLOCKED/unverified pending a local Oracle instance.
 
 # 2. Introduction
 
@@ -76,7 +76,7 @@ Design and implement a relational database and web front end that (a) stores sto
 
 # 5. Scope and limitations
 
-In scope: master-data CRUD, sales entry/history, inventory reports, restock. Out of scope: user authentication/authorization, returns and refunds, taxes/discounts, purchase orders to suppliers, multi-currency, employee CRUD screens (employees are seeded and selectable on sales). Further limitations in §26.
+In scope: master-data CRUD, sales entry and history, restock, backend–Oracle connectivity. Out of scope for Review 2: user authentication/authorization, dashboards and report screens, returns and refunds, taxes/discounts, purchase orders to suppliers, multi-currency, employee CRUD screens (employees are seeded and selectable on sales). Further limitations in §26.
 
 # 6. Functional requirements
 
@@ -85,16 +85,13 @@ In scope: master-data CRUD, sales entry/history, inventory reports, restock. Out
 - FR3 Deduct stock exactly once per sale; reject insufficient stock.
 - FR4 Restock a product.
 - FR5 Browse sales history and sale details; search by invoice, customer or employee.
-- FR6 Dashboard (counts, revenue, low-stock count, recent sales).
-- FR7 Reports: inventory status, revenue by month, top products, revenue by category, customer purchase summary.
-- FR8 Health endpoint reporting real database connectivity.
+- FR6 Health endpoint reporting real database connectivity.
 
 # 7. Non-functional requirements
 
 - Integrity: all rules enforced in the database where possible (PK/FK/UNIQUE/CHECK).
-- Security: no secrets in code, bind variables, CSRF, output escaping, least privilege.
+- Security (database access): no secrets in code, bind variables, least privilege.
 - Reliability: transactions commit atomically or roll back; connections always closed.
-- Usability: responsive layout, empty/error/success states, delete confirmation.
 - Maintainability: service-layer separation; tests per layer.
 - Portability: Windows 10/11 local setup.
 
@@ -113,11 +110,11 @@ In scope: master-data CRUD, sales entry/history, inventory reports, restock. Out
 
 | Layer | Technology |
 |---|---|
-| Presentation | HTML5, CSS3 (cyberpunk theme, dark/light), vanilla JavaScript, Jinja2 templates |
+| Presentation | HTML5, CSS3, vanilla JavaScript, Jinja2 templates (CRUD forms) |
 | Application | Python, Flask, `python-dotenv`, service-layer modules |
 | Database access | `python-oracledb` Thin mode (no Oracle Client install needed) |
 | Database | Oracle Database 21c XE, PDB `XEPDB1`, PL/SQL |
-| Quality | pytest, fake DB connection, Flask test client, headless Chromium check |
+| Quality | pytest, fake DB connection, Flask test client |
 | Documentation | Markdown source, python-docx, ReportLab, python-pptx |
 
 # 9. System architecture
@@ -458,39 +455,27 @@ END TRG_SALES_PROTECT_HISTORY;
 
 Each has example invocation and verification SQL in `advanced_features.sql` (the verification blocks roll back). Live execution: **BLOCKED**.
 
-# 21. Frontend implementation and screenshots
+# 21. CRUD and sales screens (screenshots)
 
-Server-rendered Jinja templates share `base.html` (sidebar navigation, flash messages, theme toggle). The interface uses a **cyberpunk theme** with dark (default) and light palettes; the choice is stored in `localStorage` (guarded by try/catch, so the page still works when storage is blocked) and applied before first paint by `static/js/theme-init.js`. JavaScript is progressive enhancement only: delete confirmation (`data-confirm`), add/remove of sale lines with a clearly labelled *estimated* total, and the theme toggle. Every button and form maps to a real route; pagination links preserve filters; empty, error (400/404/409/503) and success states exist. No framework or external dependency; the Content-Security-Policy `default-src 'self'` forbids inline scripts and styles, and the theme work removed the one inline style attribute that violated it. The final polish also fixed invisible Edit buttons and red borders on untouched required fields in the light palette, clipped dashboard figures, and a wrapping filter label.
+The Flask routes render server-side forms for the CRUD operations and the sale transaction. Each form posts to a real route that calls a service module; there are no mock stubs in the application code.
 
-**How these screenshots were produced.** No Oracle database was available. Figures 1–5 show the *real* Flask routes and Jinja templates rendered in headless Chromium with the service functions replaced by seed-equivalent sample data; they demonstrate the interface, **not** live database results. Figure 6 is the unmodified application started without database configuration and shows its honest 503 behaviour.
+**How these screenshots were produced.** No Oracle database was available. Figures 1–3 show the *real* Flask routes and Jinja templates rendered in headless Chromium with the service functions replaced by seed-equivalent sample data; they demonstrate the CRUD and sale screens, **not** live database results. Figure 4 is the unmodified application started without database configuration and shows how a connectivity/configuration failure is reported (HTTP 503, no invented figures).
 
-![Figure 1 – Dashboard (dark theme, sample data)](images/ui_dashboard.png)
+![Figure 1 – Products: create form, search/filter, edit, delete and restock (sample data)](images/ui_products.png)
 
-![Figure 2 – Products with search, filter, restock and pagination (sample data)](images/ui_products.png)
+![Figure 2 – New sale with two lines; the total shown is only an estimate, the server recalculates from database prices (sample data)](images/ui_new_sale.png)
 
-![Figure 3 – New sale with two lines and the non-authoritative estimate (sample data)](images/ui_new_sale.png)
+![Figure 3 – Sale detail after a sale (sample data)](images/ui_sale_detail.png)
 
-![Figure 4 – Sale detail (sample data)](images/ui_sale_detail.png)
+![Figure 4 – Real application without a configured database: honest 503 page](images/ui_db_unavailable.png)
 
-![Figure 5 – Products in the light palette (sample data)](images/ui_products_light.png)
+# 22. Database access safeguards
 
-![Figure 6 – Real application without a configured database: honest 503 page, no invented figures](images/ui_db_unavailable.png)
-
-# 22. Security controls
-
-| Control | Implementation |
-|---|---|
-| SQL injection | Bind variables only; the only formatted SQL fragments are developer constants (column lists, sorted ORDER BY, the integer lock-wait) |
-| CSRF | Per-session token required on every POST/PUT/PATCH/DELETE (form field or `X-CSRF-Token`), constant-time compare |
-| XSS | Jinja auto-escaping; no `innerHTML`; CSP |
-| Secrets | `.env` git-ignored; `.env.example` placeholders; errors/logs never contain passwords; `repr` of settings hides the password |
-| Least privilege | `appliance_app` has six `CREATE …` privileges; config refuses admin users; admin setup is a separate manual script |
-| Sessions | HttpOnly, SameSite=Lax, Secure in production |
-| Errors | Safe messages, ORA text only in server log |
-| Integrity | CHECK constraints reject negative price/stock/quantity; trigger protects history |
-| Debug | Off unless `APP_ENV` ≠ production **and** `FLASK_DEBUG=1` |
-
-Not production-secure: there is **no authentication or authorization**, no rate limiting, no audit log of users, HTTPS is not provided by the development server.
+- All SQL uses bind variables; user text never enters a statement (injection test `SVC-` in the matrix).
+- The application connects only as the least-privilege user `appliance_app` (six `CREATE` privileges, no DBA); configuration rejects `SYS`/`SYSTEM`; administrator setup is the separate manual script `database/setup_user.sql`.
+- Database errors are translated to safe messages (ORA codes, SQL and credentials go only to the server log).
+- CHECK, UNIQUE and FK constraints reject negative price/stock/quantity and protect history; the trigger blocks edits to posted sales.
+- Login/roles are not part of Review 2 (see §26).
 
 # 23. Testing methodology
 
@@ -584,21 +569,19 @@ Totals by pytest case: BLOCKED 16, PASSED 76
 | JavaScript syntax | `node --check static/js/app.js` | PASSED |
 | Query count | `grep -c "^-- Query [0-9]*:" database/queries.sql` | 16 — PASSED |
 | SQL static parse | `sqlglot` (Oracle dialect) over 16 queries and 7 seed MERGE statements | PASSED (syntax only; PL/SQL scripts not parsed — NOT RUN) |
-| Browser check | Headless Chromium loads dashboard, products, new sale, sale detail, reports (dark and light) | pages render; console error list contains only the expected 503 test — PASSED |
 | Flask smoke | `python app.py` then `GET /health`, `GET /products`, `POST /categories` without token | 503, 503, 400 as designed — PASSED |
 | Connection diagnostic | `python -m services.database` with an unreachable listener | exit 1, sanitized message, no secrets — PASSED |
-| Page-rendering of every template | covered by `RTE-` rows (stubbed services) | PASSED |
 | Secret scan | recursive grep for credential-like assignments | only obviously fake test dummies; PASSED |
 | Live Oracle: schema, seed, queries, PL/SQL, integration tests | see README §7, §9 | **BLOCKED** — no Oracle instance in the authoring environment |
 
 # 25. Results and discussion
 
-Everything that can run without Oracle ran and passed: configuration rules, validation, service logic including the full sale transaction path (lock order, stock re-check, single commit, rollback on failure), error translation (no leakage of credentials or ORA internals), route behaviour (CSRF, 400/404/409/503 statuses, XSS escaping, security headers, honest health reporting). The design choice of one deduction point (service) and sorted row locks gives deterministic concurrency behaviour that is straightforward to test. What remains unproven until run on Oracle: syntax acceptance of the DDL/PL/SQL scripts, actual constraint and trigger behaviour, the expected query results quoted in §19, and the concurrency tests. These are exactly the BLOCKED rows above.
+Everything that can run without Oracle ran and passed: configuration rules, validation, service logic including the full sale transaction path (lock order, stock re-check, single commit, rollback on failure), error translation (no leakage of credentials or ORA internals), route behaviour (400/404/409/503 statuses, honest health reporting, forms reaching the services). The design choice of one deduction point (service) and sorted row locks gives deterministic concurrency behaviour that is straightforward to test. What remains unproven until run on Oracle: syntax acceptance of the DDL/PL/SQL scripts, actual constraint and trigger behaviour, the expected query results quoted in §19, and the concurrency tests. These are exactly the BLOCKED rows above.
 
 # 26. Known limitations
 
 - No authentication/authorization or per-user audit trail.
-- Screenshots use sample data behind the real templates (no live Oracle); only Figure 6 shows unmodified runtime behaviour.
+- Screenshots use sample data behind the real templates (no live Oracle); only Figure 4 shows unmodified runtime behaviour.
 - Not verified on a live Oracle instance by the authoring environment (BLOCKED items).
 - `SALES.TOTAL_AMOUNT` ↔ line totals consistency is service-enforced, not a constraint; `LINE_TOTAL` is a documented derived column.
 - Trigger contains a test-cleanup bypass that should be removed for production-style use.

@@ -153,9 +153,9 @@ notes(s, "Scope: master-data CRUD, sales, inventory reports. Out of scope: login
 
 # ---------------------------------------------------------------- 3 architecture
 s = new_slide(3, "System architecture", "Routes call services; services own all SQL")
-layers = [("Browser", "HTML5 · CSS3 · vanilla JS · cyberpunk theme (dark / light)", "cyan"),
-          ("Flask routes — app.py", "25 routes · CSRF tokens · security headers · safe error pages", "cyan"),
-          ("Service layer — services/*.py", "validation · CRUD · sales transaction · reports — bind variables only", "mag"),
+layers = [("Browser", "HTML5 · CSS3 · vanilla JS · Jinja2 CRUD forms", "cyan"),
+          ("Flask routes — app.py", "routes for CRUD, sales and health · safe error pages", "cyan"),
+          ("Service layer — services/*.py", "validation · CRUD · sales transaction — bind variables only", "mag"),
           ("services/database.py + python-oracledb (Thin)", "connections · Oracle-error translation · config.py reads .env", "mag"),
           ("Oracle 21c XE — XEPDB1 · schema appliance_app", "7 tables · view · procedure · function · trigger · sequence", "green")]
 for i, (t, sub, col) in enumerate(layers):
@@ -308,7 +308,7 @@ bullets(s, 0.8, 1.9, 5.55, 5.0, [
     "Bind variables only; server-side validation; Decimal for money",
     "ORA errors translated to safe 400 / 404 / 409 / 503 messages",
     "/health and python -m services.database report success only after a real round trip",
-    "CRUD: products, categories, suppliers, customers + search, filters, pagination"], 14.5, gap=5)
+    "CRUD: products, categories, suppliers, customers (+ sales and restock)"], 14.5, gap=5)
 box(s, 6.8, 1.35, 5.95, 5.55)
 text(s, 7.0, 1.42, 5.5, 0.4, "ATOMIC SALE — services/sales.py", 14, "mag", True)
 steps = ["1  validate ids, payment, items (qty 1–1000)", "2  check customer & employee exist",
@@ -322,14 +322,16 @@ bullets(s, 7.0, 5.6, 5.6, 1.3, ["Stock is deducted only here — the trigger nev
 notes(s, "Live concurrency proof (8 buyers, stock 5 -> exactly 5 succeed) is an integration test that needs Oracle: BLOCKED here.")
 
 # ---------------------------------------------------------------- 9 UI
-s = new_slide(9, "Application UI & key workflows", "Cyberpunk theme · dark default + light palette")
-s.shapes.add_picture(os.path.join(IMG, "ui_dashboard.png"), Inches(0.6), Inches(1.45), width=Inches(6.0))
+s = new_slide(9, "CRUD screens & sales workflow", "Real Flask routes and templates · sample data")
+from PIL import Image as _Img
+_Img.open(os.path.join(IMG, "ui_products.png")).crop((0, 0, 1366, 800)).save(os.path.join(IMG, "ui_products_crop.png"))
+s.shapes.add_picture(os.path.join(IMG, "ui_products_crop.png"), Inches(0.6), Inches(1.45), width=Inches(6.0))
 s.shapes.add_picture(os.path.join(IMG, "ui_new_sale.png"), Inches(6.75), Inches(1.45), width=Inches(6.0))
-text(s, 0.6, 5.0, 6, 0.3, "Dashboard", 12, "muted", True)
+text(s, 0.6, 5.0, 6, 0.3, "Products: create / edit / delete / restock", 12, "muted", True)
 text(s, 6.75, 5.0, 6, 0.3, "New sale — two lines, estimate only (server recalculates)", 12, "muted", True)
 bullets(s, 0.6, 5.4, 12.1, 1.1, [
-    "Workflow: add/edit master data → New Sale → invoice page → stock falls once → Reports",
-    "Delete confirmation, CSRF on every POST, empty / error / 503 states, responsive layout"], 15, gap=3)
+    "Workflow: add / edit master data → New Sale → invoice page → stock falls exactly once",
+    "Invalid input, missing references and referenced-row deletes return clear 400 / 404 / 409 messages"], 15, gap=3)
 text(s, 0.6, 6.5, 12.1, 0.5, "Screenshots show the real templates and routes rendered with seed-equivalent sample data — no Oracle was available, so they are not live database results.",
      12, "amber")
 notes(s, "Be explicit that the screenshots use stubbed service data. The real app without DB shows an honest 503 page.")
@@ -361,7 +363,7 @@ for ri, r in enumerate(rows):
 bullets(s, 0.6, 5.45, 12.1, 1.6, [
     f"{tot['PASSED']} offline tests passed using a FAKE database connection: they prove application logic, not Oracle behaviour",
     f"{tot['BLOCKED']} live Oracle integration tests are BLOCKED / unverified — no Oracle instance was available; they are ready to run (README §9)",
-    "Also passed: compile check, JS syntax, SQL syntax parse (queries + seed), Chromium page-render check"], 14.5, gap=3)
+    "Also passed: Python compile check and SQL syntax parse of the 16 queries and the seed script"], 14.5, gap=3)
 notes(s, "Do not claim database verification. The BLOCKED tests are the ones that prove constraints, PL/SQL objects and concurrency on a real Oracle.")
 
 # ---------------------------------------------------------------- 11 limitations
@@ -387,10 +389,10 @@ notes(s, "Naming limitations openly is part of the evaluation criteria for accur
 # ---------------------------------------------------------------- 12 conclusion
 s = new_slide(12, "Conclusion & demonstration readiness")
 bullets(s, 0.6, 1.3, 12.1, 1.5, [
-    "Delivered: normalized 7-table Oracle design, seed data, 16 queries, 4 PL/SQL-side objects, secure Flask service layer, atomic sales, cyberpunk UI, tests and report",
+    "Delivered: normalized 7-table Oracle design, seed data, 16 queries, 4 PL/SQL-side objects, secure Flask service layer, CRUD, atomic sales, tests and report",
     "Every claim above is backed by files in the repository; unverified items are labelled BLOCKED"], 16, gap=4)
 chk = [("DONE", "green", "Code, SQL scripts, tests (76 passed offline), report PDF / DOCX / MD, this deck"),
-       ("DONE", "green", "Screenshots of the real templates (sample data) and honest 503 page"),
+       ("DONE", "green", "Screenshots of the real CRUD / sale templates (sample data) and honest 503 page"),
        ("TO DO", "amber", "Run schema.sql → advanced_features.sql → seed.sql in XEPDB1 as appliance_app"),
        ("TO DO", "amber", "python -m services.database  then the live integration tests (separate test schema)"),
        ("TO DO", "amber", "Rehearse docs/demo_guide.md (10 minutes); regenerate report matrix after live run")]
