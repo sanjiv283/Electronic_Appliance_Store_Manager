@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Error {{ status }}{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{{ 'Service unavailable' if status == 503 else 'Request could not be completed' }} ({{ status }})</h1>
+  <p class="alert alert-error">{{ message }}</p>
+  <p><a class="btn" href="{{ request.referrer or url_for('dashboard') }}">Go back</a>
+     <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Dashboard</a></p>
+</section>
+{% endblock %}

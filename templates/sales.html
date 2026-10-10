@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pager %}
+{% block title %}Sales History{% endblock %}
+{% block content %}
+<h1>Sales History</h1>
+<section class="card">
+  <form method="get" class="search"><label class="sr-only" for="q">Search</label>
+    <input id="q" name="q" value="{{ q }}" placeholder="Invoice, customer or employee"><button class="btn" type="submit">Search</button>
+    {% if q %}<a href="{{ url_for('sales_page') }}">Clear</a>{% endif %}
+    <a class="btn btn-secondary" href="{{ url_for('sales_new') }}">New sale</a></form>
+  {% if data.rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Employee</th><th>Payment</th><th class="num">Units</th><th class="num">Total</th></tr></thead>
+    <tbody>{% for s in data.rows %}
+      <tr><td><a href="{{ url_for('sale_detail', sale_id=s.sale_id) }}">{{ s.invoice_no }}</a></td>
+          <td>{{ s.sale_date.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ s.customer_name }}</td><td>{{ s.employee_name }}</td>
+          <td>{{ s.payment_method.replace('_', ' ').title() }}</td><td class="num">{{ s.unit_count }}</td>
+          <td class="num">{{ s.total_amount|money }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="empty">No sales found.</p>{% endif %}
+  {{ pager(data, 'sales_page', q=q) }}
+</section>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro delete_form(url, what) %}
+<form method="post" action="{{ url }}" class="inline" data-confirm="Delete {{ what }}? This cannot be undone.">
+  {{ csrf() }}<button type="submit" class="btn btn-danger btn-sm">Delete</button>
+</form>
+{% endmacro %}
+
+{% macro pager(data, endpoint) %}
+{% if data.pages > 1 %}
+<nav class="pager" aria-label="Pagination">
+  {% if data.page > 1 %}<a href="{{ url_for(endpoint, page=data.page - 1, **kwargs) }}">&larr; Previous</a>{% endif %}
+  <span>Page {{ data.page }} of {{ data.pages }} ({{ data.total }} records)</span>
+  {% if data.page < data.pages %}<a href="{{ url_for(endpoint, page=data.page + 1, **kwargs) }}">Next &rarr;</a>{% endif %}
+</nav>
+{% else %}<p class="muted">{{ data.total }} record{{ '' if data.total == 1 else 's' }}</p>{% endif %}
+{% endmacro %}

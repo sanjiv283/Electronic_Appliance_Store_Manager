@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h1>Reports</h1>
+<section class="card"><h2>Inventory status</h2>
+  {% if inventory %}<div class="table-wrap"><table>
+    <thead><tr><th>Product</th><th>Category</th><th class="num">Stock</th><th class="num">Reorder level</th><th class="num">Stock value</th><th>Status</th></tr></thead>
+    <tbody>{% for r in inventory %}<tr><td>{{ r.product_name }}</td><td>{{ r.category_name }}</td><td class="num">{{ r.stock_qty }}</td>
+      <td class="num">{{ r.reorder_level }}</td><td class="num">{{ r.stock_value|money }}</td>
+      <td><span class="badge {{ 'badge-warn' if r.status != 'OK' }}">{{ r.status }}</span></td></tr>{% endfor %}</tbody>
+  </table></div>{% else %}<p class="empty">No products.</p>{% endif %}</section>
+<section class="card"><h2>Revenue by month</h2>
+  {% if monthly %}<div class="table-wrap"><table>
+    <thead><tr><th>Month</th><th class="num">Sales</th><th class="num">Revenue</th></tr></thead>
+    <tbody>{% for r in monthly %}<tr><td>{{ r.sale_month }}</td><td class="num">{{ r.sales_count }}</td><td class="num">{{ r.revenue|money }}</td></tr>{% endfor %}</tbody>
+  </table></div>{% else %}<p class="empty">No sales yet.</p>{% endif %}</section>
+<section class="card"><h2>Top-selling products</h2>
+  {% if top %}<div class="table-wrap"><table>
+    <thead><tr><th>Product</th><th class="num">Units sold</th><th class="num">Revenue</th></tr></thead>
+    <tbody>{% for r in top %}<tr><td>{{ r.product_name }}</td><td class="num">{{ r.units_sold }}</td><td class="num">{{ r.revenue|money }}</td></tr>{% endfor %}</tbody>
+  </table></div>{% else %}<p class="empty">No sales yet.</p>{% endif %}</section>
+<section class="card"><h2>Revenue by category</h2>
+  {% if by_category %}<div class="table-wrap"><table>
+    <thead><tr><th>Category</th><th class="num">Revenue</th></tr></thead>
+    <tbody>{% for r in by_category %}<tr><td>{{ r.category_name }}</td><td class="num">{{ r.revenue|money }}</td></tr>{% endfor %}</tbody>
+  </table></div>{% else %}<p class="empty">No sales yet.</p>{% endif %}</section>
+<section class="card"><h2>Customer purchase summary</h2>
+  {% if customers %}<div class="table-wrap"><table>
+    <thead><tr><th>Customer</th><th class="num">Purchases</th><th class="num">Total spent</th><th>Last purchase</th></tr></thead>
+    <tbody>{% for r in customers %}<tr><td>{{ r.full_name }}</td><td class="num">{{ r.purchases }}</td><td class="num">{{ r.total_spent|money }}</td>
+      <td>{{ r.last_purchase.strftime('%Y-%m-%d') if r.last_purchase else '—' }}</td></tr>{% endfor %}</tbody>
+  </table></div>{% else %}<p class="empty">No customers.</p>{% endif %}</section>
+{% endblock %}

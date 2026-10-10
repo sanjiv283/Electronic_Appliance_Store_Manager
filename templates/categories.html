@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, delete_form %}
+{% block title %}Categories{% endblock %}
+{% block content %}
+<h1>Categories</h1>
+<section class="card">
+  <h2>{{ 'Edit category' if edit else 'Add category' }}</h2>
+  <form method="post" action="{{ url_for('categories_update', item_id=edit.category_id) if edit else url_for('categories_create') }}" class="grid-form">
+    {{ csrf() }}
+    <label>Name <input name="category_name" required maxlength="60" value="{{ edit.category_name if edit }}"></label>
+    <label>Description <input name="description" maxlength="255" value="{{ edit.description or '' if edit }}"></label>
+    <div class="actions"><button class="btn" type="submit">{{ 'Save changes' if edit else 'Add category' }}</button>
+      {% if edit %}<a class="btn btn-secondary" href="{{ url_for('categories_page') }}">Cancel</a>{% endif %}</div>
+  </form>
+</section>
+<section class="card">
+  <form method="get" class="search"><label class="sr-only" for="q">Search</label>
+    <input id="q" name="q" value="{{ q }}" placeholder="Search categories"><button class="btn" type="submit">Search</button>
+    {% if q %}<a href="{{ url_for('categories_page') }}">Clear</a>{% endif %}</form>
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Description</th><th class="num">Products</th><th>Actions</th></tr></thead>
+    <tbody>{% for c in rows %}
+      <tr><td>{{ c.category_name }}</td><td>{{ c.description or '' }}</td><td class="num">{{ c.product_count }}</td>
+          <td class="row-actions"><a class="btn btn-secondary btn-sm" href="{{ url_for('categories_page', edit=c.category_id) }}">Edit</a>
+            {{ delete_form(url_for('categories_delete', item_id=c.category_id), 'category ' ~ c.category_name) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="empty">No categories found.</p>{% endif %}
+</section>
+{% endblock %}

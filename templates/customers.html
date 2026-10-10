@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, delete_form, pager %}
+{% block title %}Customers{% endblock %}
+{% block content %}
+<h1>Customers</h1>
+<section class="card">
+  <h2>{{ 'Edit customer' if edit else 'Add customer' }}</h2>
+  <form method="post" action="{{ url_for('customers_update', item_id=edit.customer_id) if edit else url_for('customers_create') }}" class="grid-form">
+    {{ csrf() }}
+    <label>Full name <input name="full_name" required maxlength="100" value="{{ edit.full_name if edit }}"></label>
+    <label>Email <input type="email" name="email" required maxlength="120" value="{{ edit.email if edit }}"></label>
+    <label>Phone <input type="tel" name="phone" required maxlength="20" pattern="\+?[0-9][0-9 \-()]{5,18}" title="7-15 digits; spaces, +, -, ( ) allowed" value="{{ edit.phone if edit }}"></label>
+    <label>Address <input name="address" maxlength="255" value="{{ edit.address or '' if edit }}"></label>
+    <div class="actions"><button class="btn" type="submit">{{ 'Save changes' if edit else 'Add customer' }}</button>
+      {% if edit %}<a class="btn btn-secondary" href="{{ url_for('customers_page') }}">Cancel</a>{% endif %}</div>
+  </form>
+</section>
+<section class="card">
+  <form method="get" class="search"><label class="sr-only" for="q">Search</label>
+    <input id="q" name="q" value="{{ q }}" placeholder="Name, email or phone"><button class="btn" type="submit">Search</button>
+    {% if q %}<a href="{{ url_for('customers_page') }}">Clear</a>{% endif %}</form>
+  {% if data.rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Actions</th></tr></thead>
+    <tbody>{% for c in data.rows %}
+      <tr><td>{{ c.full_name }}</td><td>{{ c.email }}</td><td>{{ c.phone }}</td><td>{{ c.address or '' }}</td>
+          <td class="row-actions"><a class="btn btn-secondary btn-sm" href="{{ url_for('customers_page', edit=c.customer_id) }}">Edit</a>
+            {{ delete_form(url_for('customers_delete', item_id=c.customer_id), 'customer ' ~ c.full_name) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="empty">No customers found.</p>{% endif %}
+  {{ pager(data, 'customers_page', q=q) }}
+</section>
+{% endblock %}

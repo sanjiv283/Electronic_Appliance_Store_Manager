@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Dashboard{% endblock %} · Appliance Store</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {# theme-init.js is served as 'self' — CSP compliant. Applies saved theme BEFORE first paint. #}
+  <script src="{{ url_for('static', filename='js/theme-init.js') }}"></script>
+</head>
+<body>
+<div class="layout">
+
+  {# ── Sidebar ───────────────────────────────────────────────────────────── #}
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+
+    <a class="sidebar-brand" href="{{ url_for('dashboard') }}" aria-label="Appliance Store Manager — Home">
+      <div class="brand-mark">
+        {# Inline SVG icon – a lightning bolt, no external deps #}
+        <svg class="brand-icon" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <rect width="28" height="28" rx="6" fill="currentColor" fill-opacity=".12"/>
+          <path d="M16 3L7 16h8l-3 9 10-14h-8l3-8z" fill="#00F5FF" stroke="#00F5FF" stroke-width=".5" stroke-linejoin="round"/>
+        </svg>
+        <span class="brand-name">Appliance</span>
+      </div>
+      <span class="brand-sub">Store Manager</span>
+    </a>
+
+    <nav class="sidebar-nav" aria-label="Main">
+
+      <span class="nav-section-label">Overview</span>
+
+      <a href="{{ url_for('dashboard') }}"
+         {% if request.endpoint == 'dashboard' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
+          <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+        </svg>
+        Dashboard
+      </a>
+
+      <span class="nav-section-label">Inventory</span>
+
+      <a href="{{ url_for('products_page') }}"
+         {% if request.endpoint == 'products_page' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M2 5h12l-1.5 8H3.5L2 5z"/><path d="M5 5V3a2 2 0 0 1 4 0v2"/>
+        </svg>
+        Products
+      </a>
+
+      <a href="{{ url_for('categories_page') }}"
+         {% if request.endpoint == 'categories_page' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <circle cx="4" cy="4" r="2"/><circle cx="12" cy="4" r="2"/>
+          <circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/>
+        </svg>
+        Categories
+      </a>
+
+      <a href="{{ url_for('suppliers_page') }}"
+         {% if request.endpoint == 'suppliers_page' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <rect x="1" y="4" width="10" height="9" rx="1"/><path d="M11 7h3l1 3v2h-4V7z"/>
+          <circle cx="4" cy="14" r="1.5"/><circle cx="11.5" cy="14" r="1.5"/>
+        </svg>
+        Suppliers
+      </a>
+
+      <span class="nav-section-label">People</span>
+
+      <a href="{{ url_for('customers_page') }}"
+         {% if request.endpoint == 'customers_page' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <circle cx="8" cy="5" r="3"/><path d="M1 14c0-3 3-5 7-5s7 2 7 5"/>
+        </svg>
+        Customers
+      </a>
+
+      <span class="nav-section-label">Sales</span>
+
+      <a href="{{ url_for('sales_new') }}"
+         {% if request.endpoint == 'sales_new' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/>
+        </svg>
+        New Sale
+      </a>
+
+      <a href="{{ url_for('sales_page') }}"
+         {% if request.endpoint == 'sales_page' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <rect x="2" y="1" width="12" height="14" rx="1"/><path d="M5 5h6M5 8h6M5 11h4"/>
+        </svg>
+        Sales History
+      </a>
+
+      <a href="{{ url_for('reports_page') }}"
+         {% if request.endpoint == 'reports_page' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M2 14V6l4-4h6a1 1 0 0 1 1 1v11"/><path d="M6 2v4H2"/>
+          <path d="M5 10h6M5 12h4"/>
+        </svg>
+        Reports
+      </a>
+
+    </nav>
+
+    <div class="sidebar-footer">
+      Flask + Oracle 21c XE<br>
+      Academic · DBMS Review 2
+    </div>
+  </aside>
+
+  {# ── Main column ───────────────────────────────────────────────────────── #}
+  <div class="main-col">
+
+    {# ── Topbar ──────────────────────────────────────────────────────────── #}
+    <header class="topbar" role="banner">
+      <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="sidebar">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <path d="M3 5h14M3 10h14M3 15h14"/>
+        </svg>
+      </button>
+
+      <span class="topbar-title">{{ self.title() }}</span>
+
+      <button
+        class="theme-toggle"
+        id="theme-toggle"
+        type="button"
+        aria-label="Switch to light mode"
+        title="Toggle dark / light mode"
+      >
+        <span class="toggle-icon" aria-hidden="true" id="theme-icon">☀️</span>
+        <span class="toggle-label" id="theme-label">Light</span>
+      </button>
+    </header>
+
+    {# ── Page content ────────────────────────────────────────────────────── #}
+    <main>
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+        <div class="alert alert-{{ category }}" role="status">{{ message }}</div>
+      {% endfor %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+      Electronic Appliance Store Manager &mdash; Academic project, no login required.
+      <a href="{{ url_for('health') }}" style="color:var(--muted);margin-left:.5rem">Health</a>
+    </footer>
+
+  </div>{# /main-col #}
+</div>{# /layout #}
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
