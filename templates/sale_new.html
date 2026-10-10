@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}New Sale{% endblock %}
+{% block content %}
+<h1>New Sale</h1>
+{% if not products or not customers or not employees %}
+  <p class="alert alert-error">A sale needs at least one customer, one employee and one product in stock.</p>
+{% else %}
+<form method="post" action="{{ url_for('sales_create') }}" class="card" id="sale-form">
+  {{ csrf() }}
+  <div class="grid-form">
+    <label>Customer <select name="customer_id" required><option value="">Select…</option>
+      {% for c in customers %}<option value="{{ c.customer_id }}">{{ c.full_name }}</option>{% endfor %}</select></label>
+    <label>Sold by <select name="employee_id" required><option value="">Select…</option>
+      {% for e in employees %}<option value="{{ e.employee_id }}">{{ e.full_name }} ({{ e.job_title }})</option>{% endfor %}</select></label>
+    <label>Payment method <select name="payment_method" required>
+      {% for m in payment_methods %}<option value="{{ m }}">{{ m.replace('_', ' ').title() }}</option>{% endfor %}</select></label>
+  </div>
+  <h2>Items</h2>
+  <div id="lines">
+    <div class="line">
+      <label>Product <select name="product_id" required>
+        <option value="">Select…</option>
+        {% for p in products %}<option value="{{ p.product_id }}" data-price="{{ p.unit_price }}" data-stock="{{ p.stock_qty }}">{{ p.product_name }} — {{ p.unit_price|money }} ({{ p.stock_qty }} in stock)</option>{% endfor %}
+      </select></label>
+      <label>Quantity <input type="number" name="quantity" min="1" max="1000" step="1" value="1" required></label>
+      <button type="button" class="btn btn-danger btn-sm remove-line" aria-label="Remove line">Remove</button>
+    </div>
+  </div>
+  <p><button type="button" class="btn btn-secondary" id="add-line">+ Add another product</button></p>
+  <p class="muted">Estimated total: <strong id="estimate">₹0.00</strong> — an estimate only. The server re-reads prices and stock from the database and calculates the real total.</p>
+  <button class="btn" type="submit">Record sale</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sale {{ sale.invoice_no }}{% endblock %}
+{% block content %}
+<h1>Sale {{ sale.invoice_no }}</h1>
+<section class="card">
+  <dl class="details">
+    <div><dt>Date</dt><dd>{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</dd></div>
+    <div><dt>Customer</dt><dd>{{ sale.customer_name }}</dd></div>
+    <div><dt>Sold by</dt><dd>{{ sale.employee_name }}</dd></div>
+    <div><dt>Payment</dt><dd>{{ sale.payment_method.replace('_', ' ').title() }}</dd></div>
+  </dl>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Product</th><th>Model</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Line total</th></tr></thead>
+    <tbody>{% for i in items %}
+      <tr><td>{{ i.product_name }}</td><td>{{ i.model_no }}</td><td class="num">{{ i.quantity }}</td>
+          <td class="num">{{ i.unit_price|money }}</td><td class="num">{{ i.line_total|money }}</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><th colspan="4" class="num">Total</th><th class="num">{{ sale.total_amount|money }}</th></tr></tfoot>
+  </table></div>
+  {% if sale.total_matches != 'Y' %}<p class="alert alert-error">Stored total does not match the sum of the line items.</p>{% endif %}
+  <p><a class="btn btn-secondary" href="{{ url_for('sales_page') }}">&larr; Back to sales history</a></p>
+</section>
+{% endblock %}

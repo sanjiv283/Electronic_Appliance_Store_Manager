@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, delete_form %}
+{% block title %}Suppliers{% endblock %}
+{% block content %}
+<h1>Suppliers</h1>
+<section class="card">
+  <h2>{{ 'Edit supplier' if edit else 'Add supplier' }}</h2>
+  <form method="post" action="{{ url_for('suppliers_update', item_id=edit.supplier_id) if edit else url_for('suppliers_create') }}" class="grid-form">
+    {{ csrf() }}
+    <label>Name <input name="supplier_name" required maxlength="100" value="{{ edit.supplier_name if edit }}"></label>
+    <label>Contact person <input name="contact_person" maxlength="100" value="{{ edit.contact_person or '' if edit }}"></label>
+    <label>Email <input type="email" name="email" maxlength="120" value="{{ edit.email or '' if edit }}"></label>
+    <label>Phone <input type="tel" name="phone" maxlength="20" pattern="\+?[0-9][0-9 \-()]{5,18}" title="7-15 digits; spaces, +, -, ( ) allowed" value="{{ edit.phone or '' if edit }}"></label>
+    <label>Address <input name="address" maxlength="255" value="{{ edit.address or '' if edit }}"></label>
+    <div class="actions"><button class="btn" type="submit">{{ 'Save changes' if edit else 'Add supplier' }}</button>
+      {% if edit %}<a class="btn btn-secondary" href="{{ url_for('suppliers_page') }}">Cancel</a>{% endif %}</div>
+  </form>
+</section>
+<section class="card">
+  <form method="get" class="search"><label class="sr-only" for="q">Search</label>
+    <input id="q" name="q" value="{{ q }}" placeholder="Search suppliers"><button class="btn" type="submit">Search</button>
+    {% if q %}<a href="{{ url_for('suppliers_page') }}">Clear</a>{% endif %}</form>
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Contact</th><th>Email</th><th>Phone</th><th class="num">Products</th><th>Actions</th></tr></thead>
+    <tbody>{% for s in rows %}
+      <tr><td>{{ s.supplier_name }}</td><td>{{ s.contact_person or '' }}</td><td>{{ s.email or '' }}</td><td>{{ s.phone or '' }}</td>
+          <td class="num">{{ s.product_count }}</td>
+          <td class="row-actions"><a class="btn btn-secondary btn-sm" href="{{ url_for('suppliers_page', edit=s.supplier_id) }}">Edit</a>
+            {{ delete_form(url_for('suppliers_delete', item_id=s.supplier_id), 'supplier ' ~ s.supplier_name) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="empty">No suppliers found.</p>{% endif %}
+</section>
+{% endblock %}

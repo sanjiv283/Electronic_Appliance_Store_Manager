@@ -1,0 +1,27 @@
+# Secrets - never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+wallet/
+
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Test artifacts / editors / OS
+docs/test_results.xml
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

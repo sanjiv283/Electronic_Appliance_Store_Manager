@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+<section class="stats" aria-label="Key figures">
+  <div class="stat"><span>Products</span><strong>{{ stats.products }}</strong></div>
+  <div class="stat"><span>Customers</span><strong>{{ stats.customers }}</strong></div>
+  <div class="stat"><span>Sales</span><strong>{{ stats.sales }}</strong></div>
+  <div class="stat"><span>Revenue</span><strong>{{ stats.revenue|money }}</strong></div>
+  <div class="stat {{ 'warn' if stats.low_stock }}"><span>Low-stock products</span>
+    <strong><a href="{{ url_for('products_page', low_stock=1) }}">{{ stats.low_stock }}</a></strong></div>
+</section>
+<section class="card">
+  <h2>Recent sales</h2>
+  {% if recent %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th class="num">Total</th></tr></thead>
+    <tbody>{% for s in recent %}
+      <tr><td><a href="{{ url_for('sale_detail', sale_id=s.sale_id) }}">{{ s.invoice_no }}</a></td>
+          <td>{{ s.sale_date.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ s.customer_name }}</td>
+          <td class="num">{{ s.total_amount|money }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="empty">No sales recorded yet. <a href="{{ url_for('sales_new') }}">Create the first sale</a>.</p>{% endif %}
+</section>
+{% endblock %}

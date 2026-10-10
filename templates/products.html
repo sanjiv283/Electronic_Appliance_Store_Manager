@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, delete_form, pager %}
+{% block title %}Products{% endblock %}
+{% block content %}
+<h1>Products / Appliances</h1>
+<section class="card">
+  <h2>{{ 'Edit product' if edit else 'Add product' }}</h2>
+  <form method="post" action="{{ url_for('products_update', product_id=edit.product_id) if edit else url_for('products_create') }}" class="grid-form">
+    {{ csrf() }}
+    <label>Product name <input name="product_name" required maxlength="120" value="{{ edit.product_name if edit }}"></label>
+    <label>Brand <input name="brand" required maxlength="60" value="{{ edit.brand if edit }}"></label>
+    <label>Model number <input name="model_no" required maxlength="40" value="{{ edit.model_no if edit }}"></label>
+    <label>Category <select name="category_id" required>
+      <option value="">Select…</option>
+      {% for c in categories %}<option value="{{ c.category_id }}"{% if edit and edit.category_id == c.category_id %} selected{% endif %}>{{ c.category_name }}</option>{% endfor %}
+    </select></label>
+    <label>Supplier <select name="supplier_id" required>
+      <option value="">Select…</option>
+      {% for s in suppliers %}<option value="{{ s.supplier_id }}"{% if edit and edit.supplier_id == s.supplier_id %} selected{% endif %}>{{ s.supplier_name }}</option>{% endfor %}
+    </select></label>
+    <label>Unit price (₹) <input type="number" name="unit_price" required min="0" max="99999999.99" step="0.01" value="{{ edit.unit_price if edit }}"></label>
+    <label>Stock quantity <input type="number" name="stock_qty" required min="0" max="99999999" step="1" value="{{ edit.stock_qty if edit else 0 }}"></label>
+    <label>Reorder level <input type="number" name="reorder_level" required min="0" max="999999" step="1" value="{{ edit.reorder_level if edit else 5 }}"></label>
+    <label>Warranty (months) <input type="number" name="warranty_months" required min="0" max="120" step="1" value="{{ edit.warranty_months if edit else 12 }}"></label>
+    <div class="actions"><button class="btn" type="submit">{{ 'Save changes' if edit else 'Add product' }}</button>
+      {% if edit %}<a class="btn btn-secondary" href="{{ url_for('products_page') }}">Cancel</a>{% endif %}</div>
+  </form>
+</section>
+<section class="card">
+  <form method="get" class="search">
+    <label class="sr-only" for="q">Search</label><input id="q" name="q" value="{{ q }}" placeholder="Name, brand or model">
+    <label class="sr-only" for="cat">Category</label>
+    <select id="cat" name="category_id"><option value="">All categories</option>
+      {% for c in categories %}<option value="{{ c.category_id }}"{% if category_id == c.category_id|string %} selected{% endif %}>{{ c.category_name }}</option>{% endfor %}</select>
+    <label class="check"><input type="checkbox" name="low_stock" value="1"{% if low_stock %} checked{% endif %}> Low stock only</label>
+    <button class="btn" type="submit">Filter</button>
+    {% if q or category_id or low_stock %}<a href="{{ url_for('products_page') }}">Clear</a>{% endif %}
+  </form>
+  {% if data.rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Product</th><th>Model</th><th>Category</th><th>Supplier</th><th class="num">Price</th><th class="num">Stock</th><th>Restock</th><th>Actions</th></tr></thead>
+    <tbody>{% for p in data.rows %}
+      <tr><td>{{ p.product_name }}<br><small class="muted">{{ p.brand }}</small></td><td>{{ p.model_no }}</td>
+          <td>{{ p.category_name }}</td><td>{{ p.supplier_name }}</td><td class="num">{{ p.unit_price|money }}</td>
+          <td class="num">{{ p.stock_qty }}{% if p.stock_qty <= p.reorder_level %} <span class="badge badge-warn">low</span>{% endif %}</td>
+          <td><form method="post" action="{{ url_for('products_restock', product_id=p.product_id) }}" class="inline">
+                {{ csrf() }}<label class="sr-only" for="rs{{ p.product_id }}">Quantity to add</label>
+                <input id="rs{{ p.product_id }}" class="qty" type="number" name="quantity" min="1" max="1000000" step="1" required placeholder="qty">
+                <button class="btn btn-sm" type="submit">Add</button></form></td>
+          <td class="row-actions"><a class="btn btn-secondary btn-sm" href="{{ url_for('products_page', edit=p.product_id) }}">Edit</a>
+            {{ delete_form(url_for('products_delete', product_id=p.product_id), 'product ' ~ p.product_name) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="empty">No products match.</p>{% endif %}
+  {{ pager(data, 'products_page', q=q, category_id=category_id, low_stock=1 if low_stock else None) }}
+</section>
+{% endblock %}

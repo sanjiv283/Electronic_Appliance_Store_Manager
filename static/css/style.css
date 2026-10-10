@@ -1,0 +1,52 @@
+:root{--bg:#f4f6f9;--card:#fff;--text:#1d2530;--muted:#5d6b7c;--line:#dde3ea;--primary:#1f5fbf;--primary-dark:#174a96;
+--danger:#b3261e;--warn:#9a5b00;--warn-bg:#fff3d6;--ok-bg:#e3f4e6;--err-bg:#fde7e5}
+@media (prefers-color-scheme:dark){:root{--bg:#10151c;--card:#19212b;--text:#e8edf3;--muted:#9aa7b6;--line:#2c3744;--primary:#5b9bff;--primary-dark:#8ab7ff;
+--danger:#ff8a80;--warn:#ffcc66;--warn-bg:#3b2f10;--ok-bg:#153322;--err-bg:#3d1b18}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+.topbar{background:var(--primary);color:#fff;padding:.6rem 1rem;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;align-items:center}
+.topbar a{color:#fff;text-decoration:none;padding:.25rem .5rem;border-radius:4px}
+.topbar nav{display:flex;flex-wrap:wrap;gap:.25rem}
+.topbar a[aria-current]{background:rgba(255,255,255,.25);font-weight:600}
+.topbar a:hover,.topbar a:focus-visible{background:rgba(255,255,255,.18)}
+.brand{font-weight:700;font-size:1.1rem}
+main{max-width:1200px;margin:0 auto;padding:1rem}
+footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem 1rem}
+h1{margin:.5rem 0 1rem}h2{margin-top:0;font-size:1.15rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:1rem;margin-bottom:1rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1rem}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:1rem}
+.stat span{display:block;color:var(--muted);font-size:.9rem}.stat strong{font-size:1.6rem}
+.stat.warn{background:var(--warn-bg)}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{padding:.5rem .6rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:.85rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+.num{text-align:right;white-space:nowrap}
+.muted{color:var(--muted)}.empty{color:var(--muted);padding:1rem 0}
+.grid-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;align-items:end}
+label{display:flex;flex-direction:column;gap:.25rem;font-size:.9rem;font-weight:600}
+label.check{flex-direction:row;align-items:center;font-weight:400}
+input,select{font:inherit;padding:.45rem .5rem;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text);min-width:0}
+input:focus-visible,select:focus-visible,.btn:focus-visible,a:focus-visible{outline:3px solid var(--primary);outline-offset:1px}
+input:invalid:not(:placeholder-shown){border-color:var(--danger)}
+.btn{display:inline-block;font:inherit;font-weight:600;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--primary-dark)}
+.btn-secondary{background:transparent;color:var(--primary);border:1px solid var(--primary)}
+.btn-secondary:hover{background:var(--line)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{filter:brightness(.9);background:var(--danger)}
+.btn-sm{padding:.2rem .55rem;font-size:.85rem}
+.actions,.row-actions,.search{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.search{margin-bottom:1rem}
+form.inline{display:inline-flex;gap:.3rem;align-items:center}
+.qty{width:5rem}
+.alert{padding:.7rem 1rem;border-radius:6px;margin-bottom:1rem}
+.alert-success{background:var(--ok-bg)}.alert-error{background:var(--err-bg)}
+.badge{display:inline-block;padding:0 .5rem;border-radius:999px;font-size:.8rem;background:var(--ok-bg)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.pager{display:flex;gap:1rem;align-items:center;justify-content:space-between;margin-top:1rem}
+.line{display:grid;grid-template-columns:3fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:.5rem}
+.details{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem 1rem;margin:0 0 1rem}
+.details dt{color:var(--muted);font-size:.85rem}.details dd{margin:0;font-weight:600}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:600px){.line{grid-template-columns:1fr}.topbar{padding:.5rem}main{padding:.75rem}}
