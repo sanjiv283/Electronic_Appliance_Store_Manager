@@ -35,7 +35,7 @@ def collect():
             elif child.tag == "skipped":
                 reason = child.get("message") or ""
                 status = "BLOCKED" if reason.startswith("BLOCKED") else "NOT RUN"
-                actual = reason
+                actual = "Not executed: no Oracle instance available" if status == "BLOCKED" else reason
         key = (module, base)
         old = groups.get(key)
         if old is None:
@@ -47,10 +47,13 @@ def collect():
     return groups
 
 
+ORDER = ['test_config', 'test_services', 'test_routes', 'test_oracle_integration']
+
+
 def matrix_md():
     rows = ["| ID | Test description | Expected outcome | Actual outcome | Status | Remarks |", "|---|---|---|---|---|---|"]
     counters, totals = {}, {}
-    for (module, name), (status, actual, n) in collect().items():
+    for (module, name), (status, actual, n) in sorted(collect().items(), key=lambda kv: ORDER.index(kv[0][0])):
         p = PREFIX[module]
         counters[p] = counters.get(p, 0) + 1
         doc = (getattr(importlib.import_module("tests." + module), name).__doc__ or name).strip()
@@ -81,8 +84,13 @@ def parse(text):
             j = i + 1
             while not lines[j].startswith("```"):
                 j += 1
-            out.append(("code", "\n".join(lines[i + 1:j])))
+            if ln.strip() != "```mermaid":          # diagram image replaces the Mermaid source
+                out.append(("code", "\n".join(lines[i + 1:j])))
             i = j + 1
+        elif re.match(r"!\[[^\]]*\]\([^)]+\)\s*$", ln):
+            m = re.match(r"!\[([^\]]*)\]\(([^)]+)\)", ln)
+            out.append(("img", m.group(1), m.group(2)))
+            i += 1
         elif ln.startswith("<!--") or not ln.strip():
             i += 1
         elif ln.strip() == "\\newpage":
@@ -109,7 +117,7 @@ def parse(text):
         else:
             para = [ln.strip()]
             i += 1
-            while i < len(lines) and lines[i].strip() and not re.match(r"(#|\||```|\s*([-*]|\d+\.) |<!--)", lines[i]):
+            while i < len(lines) and lines[i].strip() and not re.match(r"(#|\||```|!\[|\s*([-*]|\d+\.) |<!--)", lines[i]):
                 para.append(lines[i].strip())
                 i += 1
             out.append(("p", " ".join(para)))
@@ -126,7 +134,7 @@ def build_docx(blocks):
     from docx.enum.text import WD_BREAK
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
-    from docx.shared import Pt
+    from docx.shared import Inches, Pt
 
     doc = Document()
     doc.styles["Normal"].font.name = "Calibri"
@@ -167,6 +175,11 @@ def build_docx(blocks):
                 rich(doc.add_paragraph(style="List Bullet"), item)
         elif b[0] == "pb":
             doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+        elif b[0] == "img":
+            doc.add_picture(os.path.join("docs", b[2]), width=Inches(6.2))
+            cap = doc.add_paragraph(b[1])
+            cap.runs[0].italic = True
+            cap.runs[0].font.size = Pt(9)
         elif b[0] == "table":
             rows = b[1]
             n = len(rows[0])
@@ -189,7 +202,7 @@ def build_pdf(blocks):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
-    from reportlab.platypus import (PageBreak, Paragraph, Preformatted, SimpleDocTemplate, Spacer, Table, TableStyle)
+    from reportlab.platypus import (Image, KeepTogether, PageBreak, Paragraph, Preformatted, SimpleDocTemplate, Spacer, Table, TableStyle)
 
     ss = getSampleStyleSheet()
     body = ParagraphStyle("b", parent=ss["BodyText"], fontSize=10, leading=13)
@@ -222,10 +235,18 @@ def build_pdf(blocks):
             story += [Paragraph("&bull; " + rich(item), body) for item in b[1]] + [Spacer(1, 3)]
         elif b[0] == "pb":
             story.append(PageBreak())
+        elif b[0] == "img":
+            from PIL import Image as PILImage
+            path = os.path.join("docs", b[2])
+            w, h = PILImage.open(path).size
+            scale = min(width / w, 215 * mm / h)
+            story.append(KeepTogether([Image(path, w * scale, h * scale),
+                                       Paragraph("<i>%s</i>" % escape(b[1]), cell), Spacer(1, 6)]))
         elif b[0] == "table":
             rows, n = b[1], len(b[1][0])
             data = [[Paragraph(rich(c), cell) for c in (r + [""] * n)[:n]] for r in rows]
-            t = Table(data, colWidths=[width / n] * n, repeatRows=1)
+            weights = [max(10, min(48, max(len(plain(r[c])) if c < len(r) else 0 for r in rows))) ** 0.7 for c in range(n)]
+            t = Table(data, colWidths=[width * w / sum(weights) for w in weights], repeatRows=1)
             t.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
                                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
             story += [t, Spacer(1, 6)]
