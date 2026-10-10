@@ -17,7 +17,7 @@
 
   function applyTheme(theme) {
     html.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
+    try { localStorage.setItem("theme", theme); } catch (e) { /* storage blocked: theme just won't persist */ }
     if (!icon || !lbl || !btn) { return; }
     if (theme === "dark") {
       icon.textContent = "☀️";

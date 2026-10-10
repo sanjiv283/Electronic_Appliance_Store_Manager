@@ -27,7 +27,8 @@ services/   database.py (connection+errors)  validation.py  products.py  categor
 templates/  base, dashboard, products, categories, suppliers, customers, sale_new, sales, sale_detail, reports, error
 static/     css/style.css  js/app.js
 tests/      test_config  test_services  test_routes  test_oracle_integration (live)
-docs/       Review_2_Report.{md,docx,pdf}  demo_guide.md  build_reports.py
+docs/       Review_2_Report.{md,docx,pdf}  Review_2_Presentation.pptx  demo_guide.md  images/
+            build_reports.py  build_presentation.py  make_diagrams.py
 ```
 
 ## 3. Prerequisites (Windows 10/11)

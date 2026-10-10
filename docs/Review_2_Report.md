@@ -2,7 +2,7 @@
 
 **Database Management Systems (DBMS) — Review 2: Database Implementation & Backend Integration**
 
-| | |
+| Item | Detail |
 |---|---|
 | Student | Sanjiv Shine Fernandas |
 | Subject | Database Management Systems |
@@ -12,17 +12,50 @@
 | Frontend | HTML5, CSS3, vanilla JavaScript |
 | Environment | Windows local demonstration |
 
-> **Verification disclosure.** This report was produced in an environment with no Oracle Database. Every statement about Oracle behaviour is therefore *designed and statically checked, not live-verified*. Live Oracle tests are labelled **BLOCKED** in the testing matrix (§28). They must be executed locally (README §9) before the live-database criteria are claimed as verified.
+> **Submission:** repository <https://github.com/sanjiv283/Electronic_Appliance_Store_Manager> (default branch `main`). Companion files: `docs/Review_2_Presentation.pptx`, `docs/demo_guide.md`, `README.md`.
+
+> **Verification disclosure.** This report was produced in an environment with no Oracle Database. Every statement about Oracle behaviour is therefore *designed and statically checked, not live-verified*. Live Oracle tests are labelled **BLOCKED** in the testing matrix (§24). They must be executed locally (README §9) before the live-database criteria are claimed as verified.
 
 \newpage
 
 # Table of Contents
 
-1. Abstract · 2. Introduction · 3. Problem statement · 4. Objectives · 5. Scope and limitations · 6. Functional requirements · 7. Non-functional requirements · 8. Software and hardware requirements · 9. System architecture · 10. Database design · 11. ER diagram · 12. Table descriptions · 13. Keys and constraints · 14. Normalization · 15. Implementation · 16. Flask and Oracle connectivity · 17. CRUD operations · 18. Transactions and inventory consistency · 19. SQL joins, subqueries, aggregations · 20. View, procedure, function, trigger · 21. Frontend · 22. Security · 23. Testing methodology · 24. Verified testing matrix · 25. Results and discussion · 26. Known limitations · 27. Installation summary · 28. Faculty evaluation cross-reference · 29. Conclusion · 30. References
+- 1. Abstract
+- 2. Introduction
+- 3. Problem statement
+- 4. Objectives
+- 5. Scope and limitations
+- 6. Functional requirements
+- 7. Non-functional requirements
+- 8. Software and hardware requirements
+- 9. System architecture
+- 10. Database design
+- 11. ER diagram
+- 12. Table descriptions
+- 13. Keys and constraints
+- 14. Normalization
+- 15. Implementation
+- 16. Flask and Oracle connectivity
+- 17. CRUD operations
+- 18. Transactions and inventory consistency
+- 19. SQL joins, subqueries, aggregations
+- 20. View, procedure, function, trigger
+- 21. CRUD and sales screens
+- 22. Database access safeguards
+- 23. Testing methodology
+- 24. Verified testing matrix
+- 25. Results and discussion
+- 26. Known limitations
+- 27. Installation summary
+- 28. Faculty evaluation cross-reference
+- 29. Conclusion
+- 30. References
+
+\newpage
 
 # 1. Abstract
 
-The Electronic Appliance Store Management System is a database-driven web application for a retail appliance shop. A normalized Oracle 21c schema of seven tables stores categories, suppliers, products, customers, employees, sales and sale items. A Flask service layer using python-oracledb provides CRUD for four master entities, transactional multi-item sales with row-level inventory locking, a dashboard and five reports. Oracle-side logic consists of one view, one stored procedure, one stored function and one integrity trigger. Sixteen documented SQL queries demonstrate joins, subqueries, aggregation and analytic features. Security controls include bind variables, CSRF tokens, escaped output, a least-privilege database account and sanitized errors. 76 automated tests ran and passed without Oracle (fake connection); 16 live-Oracle tests are written and BLOCKED pending a local Oracle instance.
+The Electronic Appliance Store Management System is a database-driven web application for a retail appliance shop. A normalized Oracle 21c schema of seven tables stores categories, suppliers, products, customers, employees, sales and sale items. A Flask service layer using python-oracledb provides CRUD for four master entities and transactional multi-item sales with row-level inventory locking. Oracle-side logic consists of one view, one stored procedure, one stored function and one integrity trigger. Sixteen documented SQL queries demonstrate joins, subqueries, aggregation and analytic features. The application connects with a least-privilege account and uses bind variables for all SQL. 76 automated tests ran and passed without Oracle (fake connection); 16 live-Oracle tests are written and are BLOCKED/unverified pending a local Oracle instance.
 
 # 2. Introduction
 
@@ -43,7 +76,7 @@ Design and implement a relational database and web front end that (a) stores sto
 
 # 5. Scope and limitations
 
-In scope: master-data CRUD, sales entry/history, inventory reports, restock. Out of scope: user authentication/authorization, returns and refunds, taxes/discounts, purchase orders to suppliers, multi-currency, employee CRUD screens (employees are seeded and selectable on sales). Further limitations in §26.
+In scope: master-data CRUD, sales entry and history, restock, backend–Oracle connectivity. Out of scope for Review 2: user authentication/authorization, dashboards and report screens, returns and refunds, taxes/discounts, purchase orders to suppliers, multi-currency, employee CRUD screens (employees are seeded and selectable on sales). Further limitations in §26.
 
 # 6. Functional requirements
 
@@ -52,16 +85,13 @@ In scope: master-data CRUD, sales entry/history, inventory reports, restock. Out
 - FR3 Deduct stock exactly once per sale; reject insufficient stock.
 - FR4 Restock a product.
 - FR5 Browse sales history and sale details; search by invoice, customer or employee.
-- FR6 Dashboard (counts, revenue, low-stock count, recent sales).
-- FR7 Reports: inventory status, revenue by month, top products, revenue by category, customer purchase summary.
-- FR8 Health endpoint reporting real database connectivity.
+- FR6 Health endpoint reporting real database connectivity.
 
 # 7. Non-functional requirements
 
 - Integrity: all rules enforced in the database where possible (PK/FK/UNIQUE/CHECK).
-- Security: no secrets in code, bind variables, CSRF, output escaping, least privilege.
+- Security (database access): no secrets in code, bind variables, least privilege.
 - Reliability: transactions commit atomically or roll back; connections always closed.
-- Usability: responsive layout, empty/error/success states, delete confirmation.
 - Maintainability: service-layer separation; tests per layer.
 - Portability: Windows 10/11 local setup.
 
@@ -76,24 +106,21 @@ In scope: master-data CRUD, sales entry/history, inventory reports, restock. Out
 | Tools | SQL*Plus (bundled with XE), PowerShell, a modern browser |
 | Hardware | 2+ CPU cores, 4 GB RAM minimum (Oracle XE limit 2 GB database RAM), ~5 GB disk |
 
+**Technology stack**
+
+| Layer | Technology |
+|---|---|
+| Presentation | HTML5, CSS3, vanilla JavaScript, Jinja2 templates (CRUD forms) |
+| Application | Python, Flask, `python-dotenv`, service-layer modules |
+| Database access | `python-oracledb` Thin mode (no Oracle Client install needed) |
+| Database | Oracle Database 21c XE, PDB `XEPDB1`, PL/SQL |
+| Quality | pytest, fake DB connection, Flask test client |
+| Documentation | Markdown source, python-docx, ReportLab, python-pptx |
+
 # 9. System architecture
 
-```
-Browser (HTML/CSS/JS)
-   │  HTTP (forms, CSRF token)
-   ▼
-Flask routes ── app.py (validation of route args, CSRF, error pages, security headers)
-   │
-   ▼
-Service layer ── services/{products,categories,suppliers,customers,employees,sales,reports}.py
-   │              services/validation.py  (server-side input rules)
-   │              services/database.py    (connection, bind-variable helpers, error translation)
-   ▼
-python-oracledb (Thin) ── config.py (env vars only)
-   ▼
-Oracle 21c XE / XEPDB1 / schema appliance_app
-   tables · indexes · identity columns · sequence · view · procedure · function · trigger
-```
+![System architecture](images/architecture.png)
+
 
 Routes call services only; services own all SQL; the database layer is the only module importing `oracledb`'s connect call.
 
@@ -102,6 +129,10 @@ Routes call services only; services own all SQL; the database layer is the only 
 Naming: upper-case Oracle identifiers; `PK_`, `FK_`, `UQ_`, `CK_`, `IX_` prefixes. Surrogate keys use `NUMBER GENERATED ALWAYS AS IDENTITY`. Money columns are `NUMBER(p,2)` (Python `Decimal`, never float). Timestamps use `TIMESTAMP`. Deletion behaviour: every foreign key is `NO ACTION` (restrict) — there is no cascade, so historical sales cannot be destroyed by deleting a customer, employee or product (ORA-02292, reported to users as a friendly 409). Indexes: FK columns (`IX_PRODUCTS_CATEGORY`, `IX_PRODUCTS_SUPPLIER`, `IX_SALES_CUSTOMER`, `IX_SALES_EMPLOYEE`, `IX_SALE_ITEMS_PRODUCT`) and the report filter `IX_SALES_DATE`; PK/UNIQUE constraints supply their own indexes (including `UQ_SALE_ITEMS_LINE (SALE_ID, PRODUCT_ID)` which serves lookups by sale).
 
 # 11. ER diagram
+
+![ER diagram generated from database/schema.sql](images/er_diagram.png)
+
+Mermaid source of the same diagram (renders on GitHub; omitted from the PDF/DOCX where the image above is used):
 
 ```mermaid
 erDiagram
@@ -158,18 +189,6 @@ erDiagram
                  number LINE_TOTAL }
 ```
 
-Text alternative (crow's foot: `1` = one, `N` = many):
-
-```
-CATEGORIES 1───N PRODUCTS N───1 SUPPLIERS
-                    │1
-                    N
-CUSTOMERS 1───N  SALE_ITEMS N───1 SALES N───1 EMPLOYEES
-                                   ▲N
-                                   └──────1 CUSTOMERS
-(SALES 1───N SALE_ITEMS ; PRODUCTS 1───N SALE_ITEMS ; CUSTOMERS 1───N SALES ; EMPLOYEES 1───N SALES)
-```
-
 # 12. Table descriptions and relationships
 
 | Table | Purpose | Key columns |
@@ -181,6 +200,20 @@ CUSTOMERS 1───N  SALE_ITEMS N───1 SALES N───1 EMPLOYEES
 | EMPLOYEES | Staff who process sales | PK `EMPLOYEE_ID`; UK `EMAIL` |
 | SALES | One row per invoice | PK `SALE_ID`; UK `INVOICE_NO`; FK `CUSTOMER_ID`, `EMPLOYEE_ID` |
 | SALE_ITEMS | Lines of a sale with historical price/quantity | PK `SALE_ITEM_ID`; UK (`SALE_ID`,`PRODUCT_ID`); FK `SALE_ID`, `PRODUCT_ID` |
+
+**Relational schema** (PK underlined by convention, `→` marks a foreign key):
+
+```
+CATEGORIES (CATEGORY_ID, CATEGORY_NAME, DESCRIPTION)
+SUPPLIERS  (SUPPLIER_ID, SUPPLIER_NAME, CONTACT_PERSON, EMAIL, PHONE, ADDRESS)
+PRODUCTS   (PRODUCT_ID, PRODUCT_NAME, BRAND, MODEL_NO, CATEGORY_ID→CATEGORIES, SUPPLIER_ID→SUPPLIERS,
+            UNIT_PRICE, STOCK_QTY, REORDER_LEVEL, WARRANTY_MONTHS, CREATED_AT)
+CUSTOMERS  (CUSTOMER_ID, FULL_NAME, EMAIL, PHONE, ADDRESS, CREATED_AT)
+EMPLOYEES  (EMPLOYEE_ID, FULL_NAME, EMAIL, PHONE, JOB_TITLE, HIRE_DATE)
+SALES      (SALE_ID, INVOICE_NO, CUSTOMER_ID→CUSTOMERS, EMPLOYEE_ID→EMPLOYEES, SALE_DATE,
+            PAYMENT_METHOD, TOTAL_AMOUNT)
+SALE_ITEMS (SALE_ITEM_ID, SALE_ID→SALES, PRODUCT_ID→PRODUCTS, QUANTITY, UNIT_PRICE, LINE_TOTAL)
+```
 
 Relationships (all one-to-many): a category has many products; a supplier supplies many products; a customer has many sales; an employee processes many sales; a sale contains one or more items (≥1 enforced by the service); a product appears in many sale items. A product row is never duplicated by a sale — `SALE_ITEMS` references it and keeps the price and quantity at the time of sale.
 
@@ -226,6 +259,17 @@ E-mail and phone *format* validation is performed at the application level (`ser
 - `database/schema.sql` — re-runnable DDL via an anonymous block that tolerates only ORA-00955.
 - `database/seed.sql` — generated from fixed data; `MERGE` by natural keys; totals computed, not hand-typed.
 - `database/queries.sql` — 16 numbered queries; `database/advanced_features.sql` — four objects plus self-rolling-back verification blocks; `database/setup_user.sql` — one-time admin script (password typed at a hidden prompt).
+- Sample data (`seed.sql`, fictional; 6 categories, 4 suppliers, 14 products, 8 customers, 4 employees, 8 sales, 15 sale items). Examples:
+
+| Model | Product | Price (₹) | Stock |
+|---|---|---|---|
+| ARC-RF260 | Arctiva 260L Double Door Refrigerator | 28,999.00 | 12 |
+| WW-FL70 | WashWell 7kg Front Load Washing Machine | 31,999.00 | 6 |
+| CB-AC10 | CoolBreeze 1.0 Ton Window AC | 26,499.00 | 2 (below reorder level 3) |
+| VV-TV55 | VistaView 55in 4K Smart TV | 49,999.00 | 4 (at reorder level 4) |
+| KP-MG75 | KitchenPro Mixer Grinder 750W | 3,299.00 | 25 |
+
+  Sale `INV-000001` (Anita Rao, card): 1 × ARC-RF260 + 2 × KP-MG75 = ₹35,597.00. The eight seeded sales total ₹339,582.00 (hand-checked against the seed values; not yet confirmed by a live query). Two products (`VV-TV32`, `AU-EK18`) are intentionally never sold, and one customer has no sales, to give the NOT EXISTS and LEFT JOIN queries meaningful output.
 - Python: `config.py`; `services/*`; `app.py` (25 routes); Jinja templates and static assets.
 
 # 16. Flask and Oracle connectivity
@@ -271,6 +315,58 @@ Oracle's default `READ COMMITTED` isolation plus row locks prevents overselling:
 | 15 | Customer spend ranking | RANK() analytic |
 | 16 | Inventory value and reorder status | CASE KPI |
 
+**Example queries (verbatim from `database/queries.sql`)**
+
+```
+-- Query 7: Full invoice lines (five-table JOIN)
+-- Concept: SALES - CUSTOMERS - EMPLOYEES - SALE_ITEMS - PRODUCTS.
+SELECT s.INVOICE_NO, TO_CHAR(s.SALE_DATE, 'YYYY-MM-DD') AS SALE_DAY,
+       c.FULL_NAME AS CUSTOMER, e.FULL_NAME AS EMPLOYEE,
+       p.PRODUCT_NAME, si.QUANTITY, si.UNIT_PRICE, si.LINE_TOTAL
+  FROM SALES s
+  JOIN CUSTOMERS  c  ON c.CUSTOMER_ID = s.CUSTOMER_ID
+  JOIN EMPLOYEES  e  ON e.EMPLOYEE_ID = s.EMPLOYEE_ID
+  JOIN SALE_ITEMS si ON si.SALE_ID    = s.SALE_ID
+  JOIN PRODUCTS   p  ON p.PRODUCT_ID  = si.PRODUCT_ID
+ ORDER BY s.SALE_DATE, s.INVOICE_NO, p.PRODUCT_NAME;
+
+-- Query 10: Categories with revenue above 50,000
+-- Concept: HAVING filters groups after aggregation.
+SELECT c.CATEGORY_NAME, SUM(si.LINE_TOTAL) AS CATEGORY_REVENUE
+  FROM SALE_ITEMS si
+  JOIN PRODUCTS   p ON p.PRODUCT_ID  = si.PRODUCT_ID
+  JOIN CATEGORIES c ON c.CATEGORY_ID = p.CATEGORY_ID
+ GROUP BY c.CATEGORY_ID, c.CATEGORY_NAME
+HAVING SUM(si.LINE_TOTAL) > 50000
+ ORDER BY CATEGORY_REVENUE DESC;
+
+-- Query 12: Products priced above the average of their OWN category
+-- Concept: correlated subquery (inner query references the outer row).
+SELECT p.PRODUCT_NAME, p.CATEGORY_ID, p.UNIT_PRICE
+  FROM PRODUCTS p
+ WHERE p.UNIT_PRICE > (SELECT AVG(p2.UNIT_PRICE)
+                         FROM PRODUCTS p2
+                        WHERE p2.CATEGORY_ID = p.CATEGORY_ID)
+ ORDER BY p.CATEGORY_ID, p.UNIT_PRICE DESC;
+
+-- Query 13: Products that have never been sold
+-- Concept: NOT EXISTS anti-join (dead stock report).
+SELECT p.PRODUCT_ID, p.PRODUCT_NAME, p.STOCK_QTY
+  FROM PRODUCTS p
+ WHERE NOT EXISTS (SELECT 1 FROM SALE_ITEMS si WHERE si.PRODUCT_ID = p.PRODUCT_ID)
+ ORDER BY p.PRODUCT_NAME;
+
+-- Query 15: Customer spending ranking
+-- Concept: LEFT JOIN, aggregation and the RANK() analytic function.
+SELECT c.FULL_NAME, COUNT(s.SALE_ID) AS PURCHASES,
+       NVL(SUM(s.TOTAL_AMOUNT), 0) AS TOTAL_SPENT,
+       RANK() OVER (ORDER BY NVL(SUM(s.TOTAL_AMOUNT), 0) DESC) AS SPEND_RANK
+  FROM CUSTOMERS c
+  LEFT JOIN SALES s ON s.CUSTOMER_ID = c.CUSTOMER_ID
+ GROUP BY c.CUSTOMER_ID, c.FULL_NAME
+ ORDER BY SPEND_RANK, c.FULL_NAME;
+```
+
 Status: all 16 statements parse with `sqlglot` (Oracle dialect) — a static syntax check only; **live execution on Oracle is BLOCKED**. With the seed data Q13 should return `VV-TV32` and `AU-EK18`, Q10 should list Televisions (₹139,996), Air Conditioners (₹63,498) and Washing Machines (₹50,998), Q16 flags `CB-AC10` (2 ≤ 3) and `VV-TV55` (4 ≤ 4) as REORDER NOW (expected values derived by hand from the seed; not yet confirmed on Oracle).
 
 # 20. View, procedure, function and trigger
@@ -282,27 +378,104 @@ Status: all 16 statements parse with `sqlglot` (Oracle dialect) — a static syn
 | Function `FN_CUSTOMER_TOTAL_SPEND(p_customer_id)` | Lifetime spend of a customer, 0 if none | ORA-20010 unknown customer; callable from SQL |
 | Trigger `TRG_SALES_PROTECT_HISTORY` | Integrity: blocks DELETE of a sale and UPDATE of customer, employee, invoice, date, total, payment | ORA-20030 / ORA-20031; no inventory logic; documented test-cleanup bypass via `CLIENT_INFO` |
 
+```
+CREATE OR REPLACE VIEW V_SALES_SUMMARY AS
+SELECT s.SALE_ID, s.INVOICE_NO, s.SALE_DATE, s.PAYMENT_METHOD,
+       s.CUSTOMER_ID, c.FULL_NAME AS CUSTOMER_NAME,
+       s.EMPLOYEE_ID, e.FULL_NAME AS EMPLOYEE_NAME,
+       COUNT(si.SALE_ITEM_ID)        AS LINE_COUNT,
+       NVL(SUM(si.QUANTITY), 0)      AS UNIT_COUNT,
+       s.TOTAL_AMOUNT,
+       CASE WHEN s.TOTAL_AMOUNT = NVL(SUM(si.LINE_TOTAL), 0) THEN 'Y' ELSE 'N' END AS TOTAL_MATCHES
+  FROM SALES s
+  JOIN CUSTOMERS c ON c.CUSTOMER_ID = s.CUSTOMER_ID
+  JOIN EMPLOYEES e ON e.EMPLOYEE_ID = s.EMPLOYEE_ID
+  LEFT JOIN SALE_ITEMS si ON si.SALE_ID = s.SALE_ID
+ GROUP BY s.SALE_ID, s.INVOICE_NO, s.SALE_DATE, s.PAYMENT_METHOD,
+          s.CUSTOMER_ID, c.FULL_NAME, s.EMPLOYEE_ID, e.FULL_NAME, s.TOTAL_AMOUNT;
+```
+
+```
+CREATE OR REPLACE PROCEDURE SP_RESTOCK_PRODUCT (
+  p_product_id IN NUMBER,
+  p_quantity   IN NUMBER
+) AS
+  v_stock PRODUCTS.STOCK_QTY%TYPE;
+BEGIN
+  IF p_quantity IS NULL OR p_quantity <= 0 OR p_quantity <> TRUNC(p_quantity) THEN
+    RAISE_APPLICATION_ERROR(-20001, 'Restock quantity must be a positive whole number.');
+  END IF;
+
+  SELECT STOCK_QTY INTO v_stock
+    FROM PRODUCTS
+   WHERE PRODUCT_ID = p_product_id
+     FOR UPDATE;
+
+  UPDATE PRODUCTS SET STOCK_QTY = v_stock + p_quantity
+   WHERE PRODUCT_ID = p_product_id;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    RAISE_APPLICATION_ERROR(-20002, 'Product ' || p_product_id || ' does not exist.');
+END SP_RESTOCK_PRODUCT;
+```
+
+```
+CREATE OR REPLACE FUNCTION FN_CUSTOMER_TOTAL_SPEND (
+  p_customer_id IN NUMBER
+) RETURN NUMBER AS
+  v_exists NUMBER;
+  v_total  NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO v_exists FROM CUSTOMERS WHERE CUSTOMER_ID = p_customer_id;
+  IF v_exists = 0 THEN
+    RAISE_APPLICATION_ERROR(-20010, 'Customer ' || p_customer_id || ' does not exist.');
+  END IF;
+  SELECT NVL(SUM(TOTAL_AMOUNT), 0) INTO v_total
+    FROM SALES WHERE CUSTOMER_ID = p_customer_id;
+  RETURN v_total;
+END FN_CUSTOMER_TOTAL_SPEND;
+```
+
+```
+CREATE OR REPLACE TRIGGER TRG_SALES_PROTECT_HISTORY
+BEFORE DELETE OR UPDATE OF CUSTOMER_ID, EMPLOYEE_ID, INVOICE_NO, SALE_DATE, TOTAL_AMOUNT, PAYMENT_METHOD
+ON SALES
+FOR EACH ROW
+BEGIN
+  IF SYS_CONTEXT('USERENV', 'CLIENT_INFO') = 'ITEST_CLEANUP' THEN
+    RETURN;
+  END IF;
+  IF DELETING THEN
+    RAISE_APPLICATION_ERROR(-20030, 'Sales records are historical and cannot be deleted.');
+  ELSE
+    RAISE_APPLICATION_ERROR(-20031, 'Posted sales cannot be modified.');
+  END IF;
+END TRG_SALES_PROTECT_HISTORY;
+```
+
 Each has example invocation and verification SQL in `advanced_features.sql` (the verification blocks roll back). Live execution: **BLOCKED**.
 
-# 21. Frontend implementation
+# 21. CRUD and sales screens (screenshots)
 
-Server-rendered Jinja templates with a shared `base.html` (navigation, flash messages), responsive CSS (grid, `prefers-color-scheme`, mobile breakpoint, visible focus), and ~60 lines of vanilla JavaScript: delete confirmation (`data-confirm`), dynamic add/remove of sale lines, and a clearly labelled *estimated* total. Every button and form maps to a real route; pagination links preserve filters; empty, error (503/409/400) and success states exist; the page works without JavaScript except the extra sale-line rows. No framework or external dependency; Content-Security-Policy `default-src 'self'` forbids inline scripts.
+The Flask routes render server-side forms for the CRUD operations and the sale transaction. Each form posts to a real route that calls a service module; there are no mock stubs in the application code.
 
-# 22. Security controls
+**How these screenshots were produced.** No Oracle database was available. Figures 1–3 show the *real* Flask routes and Jinja templates rendered in headless Chromium with the service functions replaced by seed-equivalent sample data; they demonstrate the CRUD and sale screens, **not** live database results. Figure 4 is the unmodified application started without database configuration and shows how a connectivity/configuration failure is reported (HTTP 503, no invented figures).
 
-| Control | Implementation |
-|---|---|
-| SQL injection | Bind variables only; the only formatted SQL fragments are developer constants (column lists, sorted ORDER BY, the integer lock-wait) |
-| CSRF | Per-session token required on every POST/PUT/PATCH/DELETE (form field or `X-CSRF-Token`), constant-time compare |
-| XSS | Jinja auto-escaping; no `innerHTML`; CSP |
-| Secrets | `.env` git-ignored; `.env.example` placeholders; errors/logs never contain passwords; `repr` of settings hides the password |
-| Least privilege | `appliance_app` has six `CREATE …` privileges; config refuses admin users; admin setup is a separate manual script |
-| Sessions | HttpOnly, SameSite=Lax, Secure in production |
-| Errors | Safe messages, ORA text only in server log |
-| Integrity | CHECK constraints reject negative price/stock/quantity; trigger protects history |
-| Debug | Off unless `APP_ENV` ≠ production **and** `FLASK_DEBUG=1` |
+![Figure 1 – Products: create form, search/filter, edit, delete and restock (sample data)](images/ui_products.png)
 
-Not production-secure: there is **no authentication or authorization**, no rate limiting, no audit log of users, HTTPS is not provided by the development server.
+![Figure 2 – New sale with two lines; the total shown is only an estimate, the server recalculates from database prices (sample data)](images/ui_new_sale.png)
+
+![Figure 3 – Sale detail after a sale (sample data)](images/ui_sale_detail.png)
+
+![Figure 4 – Real application without a configured database: honest 503 page](images/ui_db_unavailable.png)
+
+# 22. Database access safeguards
+
+- All SQL uses bind variables; user text never enters a statement (injection test `SVC-` in the matrix).
+- The application connects only as the least-privilege user `appliance_app` (six `CREATE` privileges, no DBA); configuration rejects `SYS`/`SYSTEM`; administrator setup is the separate manual script `database/setup_user.sql`.
+- Database errors are translated to safe messages (ORA codes, SQL and credentials go only to the server log).
+- CHECK, UNIQUE and FK constraints reject negative price/stock/quantity and protect history; the trigger blocks edits to posted sales.
+- Login/roles are not part of Review 2 (see §26).
 
 # 23. Testing methodology
 
@@ -323,41 +496,6 @@ Generated from the actual pytest result file (`docs/test_results.xml`) by `docs/
 | CFG-06 | repr() of the settings object | does not contain the password | Executed; assertions held | **PASSED** | Pure logic |
 | CFG-07 | FLASK_SECRET_KEY missing or placeholder | ConfigError with generation hint | Executed; assertions held | **PASSED** | Pure logic |
 | CFG-08 | APP_ENV=production | secure cookies on, debug off even if FLASK_DEBUG=1 | Executed; assertions held | **PASSED** | Pure logic |
-| INT-01 | Connect to XEPDB1 as the test application user | connected, user is not SYS/SYSTEM | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-02 | USER_TABLES | all 7 required tables exist | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-03 | USER_OBJECTS | view, procedure, function, trigger all VALID | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-04 | Negative price/stock, duplicate model, bad category FK | ORA-02290 / ORA-00001 / ORA-02291 | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-05 | SALE_ITEMS with LINE_TOTAL != QUANTITY*UNIT_PRICE | ORA-02290 | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-06 | Delete category/customer/product that history references | ConflictError (ORA-02292 translated) | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-07 | Create, read, update, delete a category and customer through the services | each step reflected in DB | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-08 | SP_RESTOCK_PRODUCT | +5 stock on success; ORA-20001 for 0, ORA-20002 unknown product | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-09 | FN_CUSTOMER_TOTAL_SPEND | 0 before sales, equals sale total after, ORA-20010 for unknown customer | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-10 | TRG_SALES_PROTECT_HISTORY | DELETE -> ORA-20030, UPDATE total -> ORA-20031 | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-11 | V_SALES_SUMMARY | shows the new sale with correct line/unit counts and TOTAL_MATCHES = 'Y' | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-12 | Two-item sale | totals from DB prices (2*100.00+3*49.50=348.50), stock 10->8 and 5->2, items stored | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-13 | Quantity above stock | InsufficientStockError; no sale row, stock unchanged | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-14 | Valid line + nonexistent product | ValidationError and the valid line's stock is untouched | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-15 | Another session holds FOR UPDATE on a product | sale waits then fails with ConflictError (ORA-30006), stock intact | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| INT-16 | 8 threads each buy 1 unit of a product with 5 in stock | exactly 5 succeed, 3 InsufficientStockError, final stock 0 | BLOCKED: live Oracle tests not enabled (set RUN_ORACLE_TESTS=1 and TEST_DB_* variables) | **BLOCKED** | Requires live Oracle test schema |
-| RTE-01 | Dashboard with stubbed DB figures | 200 and the figures are rendered | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-02 | Oracle unavailable | HTTP 503 error page, no statistics shown | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-03 | Category name containing <script> | rendered escaped, never as live markup | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-04 | POST with no CSRF token | 400 and the service is never called | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-05 | POST with a forged CSRF token | 400 | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-06 | Valid CSRF token + valid form | service called, 303 redirect (post/redirect/get) | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-07 | X-CSRF-Token header instead of form field | accepted | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-08 | GET on delete / update / restock URLs | 405 Method Not Allowed | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-09 | Service raises ValidationError | HTTP 400 with the message | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-10 | Delete of a referenced row | HTTP 409 with friendly message | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-11 | Sale rejected for insufficient stock | HTTP 409 with product detail | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-12 | Forged price/total fields in the sale POST | never forwarded to create_sale | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-13 | Sale form with no product lines | HTTP 400, create_sale never reached | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-14 | Unknown URL -> 404; non-numeric sale id -> 404 | Unknown URL -> 404; non-numeric sale id -> 404 | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-15 | Unexpected exception text with a secret | HTTP 500, page shows a generic message only | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-16 | Any response | CSP, nosniff and frame protection headers set | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-17 | No Oracle configured | /health returns 503 and database=unavailable, never 'ok' | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-18 | health_check reporting success | /health 200 with no secrets in the body | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
-| RTE-19 | Products, customers, sales, sale detail, new sale, reports pages | all render 200 with stubbed data | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
 | SVC-01 | Valid monetary strings (3 parameter sets) | accepted and quantised to 2 decimals | Executed; assertions held | **PASSED** | Fake DB connection - proves SQL/transaction logic, not Oracle behaviour |
 | SVC-02 | Negative, non-numeric, 3-decimal, NaN, too-large prices (6 parameter sets) | ValidationError | Executed; assertions held | **PASSED** | Fake DB connection - proves SQL/transaction logic, not Oracle behaviour |
 | SVC-03 | Malformed email / phone numbers | ValidationError; valid ones accepted | Executed; assertions held | **PASSED** | Fake DB connection - proves SQL/transaction logic, not Oracle behaviour |
@@ -384,6 +522,41 @@ Generated from the actual pytest result file (`docs/test_results.xml`) by `docs/
 | SVC-24 | Procedure raises ORA-20002 | NotFoundError, rolled back | Executed; assertions held | **PASSED** | Fake DB connection - proves SQL/transaction logic, not Oracle behaviour |
 | SVC-25 | oracledb.connect raising ORA-01017 (bad login) | DatabaseUnavailableError, no credentials in message | Executed; assertions held | **PASSED** | Fake DB connection - proves SQL/transaction logic, not Oracle behaviour |
 | SVC-26 | No DB configured | health_check returns (False, message) - never claims success | Executed; assertions held | **PASSED** | Fake DB connection - proves SQL/transaction logic, not Oracle behaviour |
+| RTE-01 | Dashboard with stubbed DB figures | 200 and the figures are rendered | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-02 | Oracle unavailable | HTTP 503 error page, no statistics shown | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-03 | Category name containing <script> | rendered escaped, never as live markup | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-04 | POST with no CSRF token | 400 and the service is never called | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-05 | POST with a forged CSRF token | 400 | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-06 | Valid CSRF token + valid form | service called, 303 redirect (post/redirect/get) | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-07 | X-CSRF-Token header instead of form field | accepted | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-08 | GET on delete / update / restock URLs | 405 Method Not Allowed | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-09 | Service raises ValidationError | HTTP 400 with the message | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-10 | Delete of a referenced row | HTTP 409 with friendly message | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-11 | Sale rejected for insufficient stock | HTTP 409 with product detail | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-12 | Forged price/total fields in the sale POST | never forwarded to create_sale | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-13 | Sale form with no product lines | HTTP 400, create_sale never reached | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-14 | Unknown URL -> 404; non-numeric sale id -> 404 | Unknown URL -> 404; non-numeric sale id -> 404 | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-15 | Unexpected exception text with a secret | HTTP 500, page shows a generic message only | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-16 | Any response | CSP, nosniff and frame protection headers set | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-17 | No Oracle configured | /health returns 503 and database=unavailable, never 'ok' | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-18 | health_check reporting success | /health 200 with no secrets in the body | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| RTE-19 | Products, customers, sales, sale detail, new sale, reports pages | all render 200 with stubbed data | Executed; assertions held | **PASSED** | Services stubbed; Flask test client |
+| INT-01 | Connect to XEPDB1 as the test application user | connected, user is not SYS/SYSTEM | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-02 | USER_TABLES | all 7 required tables exist | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-03 | USER_OBJECTS | view, procedure, function, trigger all VALID | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-04 | Negative price/stock, duplicate model, bad category FK | ORA-02290 / ORA-00001 / ORA-02291 | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-05 | SALE_ITEMS with LINE_TOTAL != QUANTITY*UNIT_PRICE | ORA-02290 | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-06 | Delete category/customer/product that history references | ConflictError (ORA-02292 translated) | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-07 | Create, read, update, delete a category and customer through the services | each step reflected in DB | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-08 | SP_RESTOCK_PRODUCT | +5 stock on success; ORA-20001 for 0, ORA-20002 unknown product | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-09 | FN_CUSTOMER_TOTAL_SPEND | 0 before sales, equals sale total after, ORA-20010 for unknown customer | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-10 | TRG_SALES_PROTECT_HISTORY | DELETE -> ORA-20030, UPDATE total -> ORA-20031 | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-11 | V_SALES_SUMMARY | shows the new sale with correct line/unit counts and TOTAL_MATCHES = 'Y' | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-12 | Two-item sale | totals from DB prices (2*100.00+3*49.50=348.50), stock 10->8 and 5->2, items stored | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-13 | Quantity above stock | InsufficientStockError; no sale row, stock unchanged | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-14 | Valid line + nonexistent product | ValidationError and the valid line's stock is untouched | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-15 | Another session holds FOR UPDATE on a product | sale waits then fails with ConflictError (ORA-30006), stock intact | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
+| INT-16 | 8 threads each buy 1 unit of a product with 5 in stock | exactly 5 succeed, 3 InsufficientStockError, final stock 0 | Not executed: no Oracle instance available | **BLOCKED** | Requires live Oracle test schema |
 
 Totals by pytest case: BLOCKED 16, PASSED 76
 <!-- MATRIX:END -->
@@ -403,11 +576,12 @@ Totals by pytest case: BLOCKED 16, PASSED 76
 
 # 25. Results and discussion
 
-Everything that can run without Oracle ran and passed: configuration rules, validation, service logic including the full sale transaction path (lock order, stock re-check, single commit, rollback on failure), error translation (no leakage of credentials or ORA internals), route behaviour (CSRF, 400/404/409/503 statuses, XSS escaping, security headers, honest health reporting). The design choice of one deduction point (service) and sorted row locks gives deterministic concurrency behaviour that is straightforward to test. What remains unproven until run on Oracle: syntax acceptance of the DDL/PL/SQL scripts, actual constraint and trigger behaviour, the expected query results quoted in §19, and the concurrency tests. These are exactly the BLOCKED rows above.
+Everything that can run without Oracle ran and passed: configuration rules, validation, service logic including the full sale transaction path (lock order, stock re-check, single commit, rollback on failure), error translation (no leakage of credentials or ORA internals), route behaviour (400/404/409/503 statuses, honest health reporting, forms reaching the services). The design choice of one deduction point (service) and sorted row locks gives deterministic concurrency behaviour that is straightforward to test. What remains unproven until run on Oracle: syntax acceptance of the DDL/PL/SQL scripts, actual constraint and trigger behaviour, the expected query results quoted in §19, and the concurrency tests. These are exactly the BLOCKED rows above.
 
 # 26. Known limitations
 
 - No authentication/authorization or per-user audit trail.
+- Screenshots use sample data behind the real templates (no live Oracle); only Figure 4 shows unmodified runtime behaviour.
 - Not verified on a live Oracle instance by the authoring environment (BLOCKED items).
 - `SALES.TOTAL_AMOUNT` ↔ line totals consistency is service-enforced, not a constraint; `LINE_TOTAL` is a documented derived column.
 - Trigger contains a test-cleanup bypass that should be removed for production-style use.
@@ -418,6 +592,8 @@ Everything that can run without Oracle ran and passed: configuration rules, vali
 # 27. Installation and execution summary
 
 See README §4–§9. In brief (PowerShell): create `appliance_app` once as admin with `database\setup_user.sql`; `py -3.11 -m venv .venv`; activate; `pip install -r requirements.txt`; copy `.env.example` to `.env` and fill in the password and a generated secret key; run `schema.sql`, `advanced_features.sql`, `seed.sql` with `sqlplus appliance_app@localhost:1521/XEPDB1 @database\<file>.sql`; `python -m services.database`; `python -m pytest tests -v`; `python app.py`; open `http://127.0.0.1:5000`.
+
+**Demonstration (10 minutes, details in `docs/demo_guide.md`):** (1) `python -m services.database` and open the app; (2) show `schema.sql` constraints and the failing inserts; (3) verify seed counts; (4) run queries Q7, Q10, Q12, Q13; (5) show the four PL/SQL objects; (6) `/health` and CRUD; (7) record a two-item sale and watch stock fall, then try an oversized sale (HTTP 409); (8) show the test matrix with its BLOCKED rows stated honestly.
 
 # 28. Faculty evaluation cross-reference
 
