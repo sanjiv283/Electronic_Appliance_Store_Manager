@@ -12,7 +12,7 @@ Status legend: **verified offline** = unit/route tests with a fake database (126
 | Search, filtering, reports, dashboard | Search/filter/pagination on products, customers, employees, sales; dashboard; 5 reports | Pages `/products?q=`, `/sales?q=`, `/reports` | Offline-verified; live needs Oracle |
 | Error handling and basic security | Bind variables, CSRF on every POST, escaped output, CSP, safe error pages (400/401/403/404/409/429/503), hashed passwords, least-privilege DB user, default-deny access control | `tests/test_routes.py`, `tests/test_auth.py` | Offline-verified |
 | Testing and demonstration | pytest suites (unit, route, auth, live-Oracle) + `docs/demo_guide.md` | `python -m pytest tests -v` | 126 passed, 19 blocked (live Oracle) |
-| Project documentation | `README.md`, `docs/deployment.md`, `docs/demo_guide.md`, Review 2 report/deck, this file | — | Review 3 report/deck not generated yet |
+| Project documentation | `README.md`, `docs/deployment.md`, `docs/demo_guide.md`, Review 2 report/deck, this file | — | Review 3 report (.md/.docx/.pdf) and deck (.pptx) generated |
 
 ## Role matrix
 | | Manager | Cashier |
