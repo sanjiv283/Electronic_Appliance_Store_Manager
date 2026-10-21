@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Appliance Store</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="{{ url_for('static', filename='js/theme-init.js') }}"></script>
+</head>
+<body>
+  <main class="auth-wrap">
+    <section class="card auth-card" aria-labelledby="signin-title">
+      <p class="auth-brand">⚡ APPLIANCE STORE MANAGER</p>
+      <h1 id="signin-title">Sign in</h1>
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+        <div class="alert alert-{{ category }}" role="status">{{ message }}</div>
+      {% endfor %}
+      {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+      <form method="post" action="{{ url_for('login') }}" class="stack-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ next }}">
+        <label>Username <input name="username" required maxlength="40" autocomplete="username" autofocus></label>
+        <label>Password <input type="password" name="password" required maxlength="128" autocomplete="current-password"></label>
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+      <p class="muted">Accounts are created by a manager. Forgot your password? Ask a manager to reset it.</p>
+    </section>
+  </main>
+</body>
+</html>

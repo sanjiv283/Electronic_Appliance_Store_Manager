@@ -14,7 +14,7 @@
   {# ── Sidebar ───────────────────────────────────────────────────────────── #}
   <aside class="sidebar" id="sidebar" aria-label="Main navigation">
 
-    <a class="sidebar-brand" href="{{ url_for('dashboard') }}" aria-label="Appliance Store Manager — Home">
+    <a class="sidebar-brand" href="{{ url_for('dashboard') if allowed('dashboard') else url_for('sales_new') }}" aria-label="Appliance Store Manager — Home">
       <div class="brand-mark">
         {# Inline SVG icon – a lightning bolt, no external deps #}
         <svg class="brand-icon" viewBox="0 0 28 28" fill="none" aria-hidden="true">
@@ -29,6 +29,7 @@
     <nav class="sidebar-nav" aria-label="Main">
 
       <span class="nav-section-label">Overview</span>
+      {% if allowed('dashboard') %}
 
       <a href="{{ url_for('dashboard') }}"
          {% if request.endpoint == 'dashboard' %}aria-current="page"{% endif %}>
@@ -38,8 +39,10 @@
         </svg>
         Dashboard
       </a>
+      {% endif %}
 
       <span class="nav-section-label">Inventory</span>
+      {% if allowed('products_page') %}
 
       <a href="{{ url_for('products_page') }}"
          {% if request.endpoint == 'products_page' %}aria-current="page"{% endif %}>
@@ -48,6 +51,8 @@
         </svg>
         Products
       </a>
+      {% endif %}
+      {% if allowed('categories_page') %}
 
       <a href="{{ url_for('categories_page') }}"
          {% if request.endpoint == 'categories_page' %}aria-current="page"{% endif %}>
@@ -57,6 +62,8 @@
         </svg>
         Categories
       </a>
+      {% endif %}
+      {% if allowed('suppliers_page') %}
 
       <a href="{{ url_for('suppliers_page') }}"
          {% if request.endpoint == 'suppliers_page' %}aria-current="page"{% endif %}>
@@ -66,8 +73,10 @@
         </svg>
         Suppliers
       </a>
+      {% endif %}
 
       <span class="nav-section-label">People</span>
+      {% if allowed('customers_page') %}
 
       <a href="{{ url_for('customers_page') }}"
          {% if request.endpoint == 'customers_page' %}aria-current="page"{% endif %}>
@@ -76,8 +85,27 @@
         </svg>
         Customers
       </a>
+      {% endif %}
+
+      {% if allowed('employees_page') %}
+      <a href="{{ url_for('employees_page') }}"
+         {% if request.endpoint == 'employees_page' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <circle cx="8" cy="5" r="3"/><path d="M1 14c0-3 3-5 7-5s7 2 7 5"/>
+        </svg>
+        Employees
+      </a>
+      <a href="{{ url_for('users_page') }}"
+         {% if request.endpoint == 'users_page' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <circle cx="8" cy="5" r="3"/><path d="M1 14c0-3 3-5 7-5s7 2 7 5"/>
+        </svg>
+        User accounts
+      </a>
+      {% endif %}
 
       <span class="nav-section-label">Sales</span>
+      {% if allowed('sales_new') %}
 
       <a href="{{ url_for('sales_new') }}"
          {% if request.endpoint == 'sales_new' %}aria-current="page"{% endif %}>
@@ -86,6 +114,8 @@
         </svg>
         New Sale
       </a>
+      {% endif %}
+      {% if allowed('sales_page') %}
 
       <a href="{{ url_for('sales_page') }}"
          {% if request.endpoint == 'sales_page' %}aria-current="page"{% endif %}>
@@ -94,6 +124,8 @@
         </svg>
         Sales History
       </a>
+      {% endif %}
+      {% if allowed('reports_page') %}
 
       <a href="{{ url_for('reports_page') }}"
          {% if request.endpoint == 'reports_page' %}aria-current="page"{% endif %}>
@@ -103,12 +135,23 @@
         </svg>
         Reports
       </a>
+      {% endif %}
 
     </nav>
 
     <div class="sidebar-footer">
-      Flask + Oracle 21c XE<br>
-      Academic · DBMS Review 2
+      {% if current_user() %}
+      <div class="user-box">
+        <strong>{{ current_user().name }}</strong>
+        <span>{{ current_user().username }} · {{ current_user().role|title }}</span>
+        <a href="{{ url_for('account_password') }}">Change password</a>
+        <form method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-secondary btn-sm">Sign out</button>
+        </form>
+      </div>
+      {% endif %}
+      Flask + Oracle 21c XE
     </div>
   </aside>
 
@@ -146,8 +189,8 @@
     </main>
 
     <footer>
-      Electronic Appliance Store Manager &mdash; Academic project, no login required.
-      <a href="{{ url_for('health') }}" style="color:var(--muted);margin-left:.5rem">Health</a>
+      Electronic Appliance Store Manager &mdash; Academic project.
+      <a href="{{ url_for('health') }}" class="footer-link">Health</a>
     </footer>
 
   </div>{# /main-col #}

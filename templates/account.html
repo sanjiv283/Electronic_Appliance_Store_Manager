@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Change password{% endblock %}
+{% block content %}
+<h1>Change password</h1>
+<section class="card auth-card-wide">
+  <p class="muted">Signed in as <strong>{{ current_user().username }}</strong> ({{ current_user().role|title }}). Minimum 10 characters.</p>
+  <form method="post" action="{{ url_for('account_password') }}" class="stack-form">
+    {{ csrf() }}
+    <label>Current password <input type="password" name="current_password" required maxlength="128" autocomplete="current-password"></label>
+    <label>New password <input type="password" name="password" required minlength="10" maxlength="128" autocomplete="new-password"></label>
+    <label>Repeat new password <input type="password" name="password_confirm" required minlength="10" maxlength="128" autocomplete="new-password"></label>
+    <div class="actions"><button class="btn" type="submit">Change password</button></div>
+  </form>
+</section>
+{% endblock %}

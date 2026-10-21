@@ -25,7 +25,7 @@
     <tbody>{% for c in data.rows %}
       <tr><td>{{ c.full_name }}</td><td>{{ c.email }}</td><td>{{ c.phone }}</td><td>{{ c.address or '' }}</td>
           <td class="row-actions"><a class="btn btn-secondary btn-sm" href="{{ url_for('customers_page', edit=c.customer_id) }}">Edit</a>
-            {{ delete_form(url_for('customers_delete', item_id=c.customer_id), 'customer ' ~ c.full_name) }}</td></tr>{% endfor %}</tbody>
+            {% if allowed('customers_delete') %}{{ delete_form(url_for('customers_delete', item_id=c.customer_id), 'customer ' ~ c.full_name) }}{% endif %}</td></tr>{% endfor %}</tbody>
   </table></div>
   {% else %}<p class="empty">No customers found.</p>{% endif %}
   {{ pager(data, 'customers_page', q=q) }}

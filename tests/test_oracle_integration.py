@@ -18,7 +18,7 @@ from decimal import Decimal
 import oracledb
 import pytest
 
-from services import categories, customers, database, products, sales, suppliers
+from services import categories, customers, database, employees, products, sales, suppliers, users
 from services.errors import ConflictError, InsufficientStockError, ValidationError
 
 _NEEDED = ("TEST_DB_HOST", "TEST_DB_PORT", "TEST_DB_SERVICE_NAME", "TEST_DB_USER", "TEST_DB_PASSWORD")
@@ -204,9 +204,9 @@ def test_procedure_restock_and_errors(conn, world):
 
 def test_function_customer_total_spend(conn, world):
     """FN_CUSTOMER_TOTAL_SPEND | 0 before sales, equals sale total after, ORA-20010 for unknown customer"""
-    assert scalar(conn, "SELECT FN_CUSTOMER_TOTAL_SPEND(:c) FROM DUAL", c=world["cust"]) == 0
+    assert scalar(conn, "SELECT FN_CUSTOMER_TOTAL_SPEND(:cid) FROM DUAL", cid=world["cust"]) == 0
     r = sales.create_sale(world["cust"], world["emp"], "UPI", [(world["p1"], 2), (world["p2"], 1)])
-    assert Decimal(str(scalar(conn, "SELECT FN_CUSTOMER_TOTAL_SPEND(:c) FROM DUAL", c=world["cust"]))) == r["total"]
+    assert Decimal(str(scalar(conn, "SELECT FN_CUSTOMER_TOTAL_SPEND(:cid) FROM DUAL", cid=world["cust"]))) == r["total"]
     with conn.cursor() as cur:
         with pytest.raises(oracledb.DatabaseError) as e:
             cur.execute("SELECT FN_CUSTOMER_TOTAL_SPEND(-999) FROM DUAL")
@@ -295,3 +295,58 @@ def test_concurrent_sales_cannot_oversell(world):
     [t.join() for t in threads]
     assert sorted(results) == ["ok"] * 5 + ["short"] * 3
     assert stock(world["p2"]) == 0
+
+
+# ---------------------------------------------------------------- Review 3 (needs database/auth.sql loaded)
+def test_users_table_and_constraints_enforced(conn, world):
+    """USERS table (auth.sql) | role CHECK, lower-case username CHECK and one-account-per-employee UNIQUE enforced (ORA-02290 / ORA-00001)"""
+    sql = "INSERT INTO USERS (USERNAME, PASSWORD_HASH, ROLE, EMPLOYEE_ID) VALUES (:u, 'hash', :r, :e)"
+    with conn.cursor() as cur:
+        with pytest.raises(oracledb.DatabaseError) as e:
+            cur.execute(sql, {"u": "itest-user", "r": "ROOT", "e": world["emp"]})
+        assert ora(e) == 2290
+        with pytest.raises(oracledb.DatabaseError) as e:
+            cur.execute(sql, {"u": "ITEST-UPPER", "r": "CASHIER", "e": world["emp"]})
+        assert ora(e) == 2290
+        cur.execute(sql, {"u": world["tag"].lower(), "r": "CASHIER", "e": world["emp"]})
+        with pytest.raises(oracledb.DatabaseError) as e:
+            cur.execute(sql, {"u": world["tag"].lower() + "x", "r": "CASHIER", "e": world["emp"]})
+        assert ora(e) == 1
+    conn.rollback()
+
+
+def test_user_account_lifecycle_and_hashing(world):
+    """Create user, sign in, wrong password, change password, delete | password stored hashed, authenticate works only with the right password"""
+    name = world["tag"].lower()
+    uid = users.create({"username": name, "role": "CASHIER", "password": "itest-password-1",
+                        "password_confirm": "itest-password-1", "employee_id": str(world["emp"])})
+    try:
+        stored = database.fetch_one("SELECT PASSWORD_HASH AS h FROM USERS WHERE USER_ID = :i", {"i": uid})["h"]
+        assert stored != "itest-password-1" and len(stored) > 40
+        assert users.authenticate(name, "itest-password-1")["role"] == "CASHIER"
+        assert users.authenticate(name, "wrong-password") is None
+        users.change_own_password(uid, {"current_password": "itest-password-1", "password": "itest-password-2",
+                                        "password_confirm": "itest-password-2"})
+        assert users.authenticate(name, "itest-password-1") is None
+        assert users.authenticate(name, "itest-password-2") is not None
+        with pytest.raises(ConflictError):                       # employee already has an account
+            users.create({"username": name + "2", "role": "CASHIER", "password": "itest-password-1",
+                          "password_confirm": "itest-password-1", "employee_id": str(world["emp"])})
+        with pytest.raises(ConflictError):                       # cannot delete employee that owns an account
+            employees.delete(world["emp"])
+    finally:
+        users.delete(uid, acting_user_id=-1)
+    assert users.authenticate(name, "itest-password-2") is None
+
+
+def test_employee_crud_round_trip():
+    """Create, update, delete an employee through the service | each step reflected in the database"""
+    t = tag()
+    eid = employees.create({"full_name": t, "email": f"{t.lower()}@example.com", "job_title": "Tester", "hire_date": "2024-01-15"})
+    try:
+        assert employees.get(eid)["job_title"] == "Tester"
+        employees.update(eid, {"full_name": t, "email": f"{t.lower()}@example.com", "job_title": "Lead Tester", "hire_date": "2024-01-15"})
+        assert employees.get(eid)["job_title"] == "Lead Tester"
+    finally:
+        employees.delete(eid)
+    assert database.fetch_one("SELECT 1 AS x FROM EMPLOYEES WHERE EMPLOYEE_ID = :i", {"i": eid}) is None

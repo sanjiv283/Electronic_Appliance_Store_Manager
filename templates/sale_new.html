@@ -3,16 +3,15 @@
 {% block title %}New Sale{% endblock %}
 {% block content %}
 <h1>New Sale</h1>
-{% if not products or not customers or not employees %}
-  <p class="alert alert-error">A sale needs at least one customer, one employee and one product in stock.</p>
+{% if not products or not customers %}
+  <p class="alert alert-error">A sale needs at least one customer and one product in stock.</p>
 {% else %}
 <form method="post" action="{{ url_for('sales_create') }}" class="card" id="sale-form">
   {{ csrf() }}
   <div class="grid-form">
     <label>Customer <select name="customer_id" required><option value="">Select…</option>
       {% for c in customers %}<option value="{{ c.customer_id }}">{{ c.full_name }}</option>{% endfor %}</select></label>
-    <label>Sold by <select name="employee_id" required><option value="">Select…</option>
-      {% for e in employees %}<option value="{{ e.employee_id }}">{{ e.full_name }} ({{ e.job_title }})</option>{% endfor %}</select></label>
+    <div class="sold-by"><span class="muted">Sold by</span> <strong>{{ current_user().name }}</strong></div>
     <label>Payment method <select name="payment_method" required>
       {% for m in payment_methods %}<option value="{{ m }}">{{ m.replace('_', ' ').title() }}</option>{% endfor %}</select></label>
   </div>
