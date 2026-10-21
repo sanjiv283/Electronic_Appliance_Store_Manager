@@ -23,25 +23,19 @@ Status legend: **verified offline** = unit/route tests with a fake database (126
 | Dashboard, reports, categories, suppliers, employees, user accounts | yes | no (403) |
 
 ## Security notes (honest limits)
-No self-registration or password-reset e-mail; no MFA; throttle is per process; role changes apply at next sign-in; HTTPS must be provided by the deployment (see `docs/deployment.md`).
+No self-registration or password-reset e-mail; no MFA; throttle is per process (bounded, proxy-aware via TRUSTED_PROXIES); role changes apply at next sign-in; HTTPS must be provided by the deployment (see `docs/deployment.md`).
 
 ## Security hardening patch (fix/review-3-hardening)
 - **Open redirect fixed:** after sign-in, `next=` accepts only same-site paths; control characters (tab, CR, LF, DEL) and backslashes are rejected (a tab used to turn `/<TAB>/evil.example` into the external `//evil.example`; a newline caused a 500).
 - **`manage.py` errors:** a missing database configuration now prints `FAILED: ...` and exits with status 1 instead of a traceback.
 - **`/health` is status-only:** it returns `{"app":"ok","database":"ok"|"unavailable"}` with HTTP 200/503 and no database user, service name, host or error text, for everyone. The reason for a failure is written to the server log; `python -m services.database` prints full diagnostics locally.
 
-## Login throttle: current limits and deferred follow-up
-Current behaviour (unchanged by this patch): an in-process dictionary keyed by (username, client IP); 5 failed sign-ins within 5 minutes return HTTP 429 until the window passes. Correct passwords are rejected during the lockout.
+## Login throttle (redesigned in fix/login-throttle)
+`services/throttle.py` (`LoginThrottle`), used by `/login`:
+- **Two sliding-window limits:** 5 failures per (username, client address) and 20 failures per client address across all usernames (stops one address spraying many usernames). A different address is never affected, so nobody can lock a user out from elsewhere.
+- **Bounded memory:** at most 10,000 entries; expired entries are dropped, then the oldest-updated first. Thread-safe (waitress runs 8 threads).
+- **Client address behind a proxy:** `TRUSTED_PROXIES=<n>` in `.env` (0-5, default 0) wraps the app in Werkzeug `ProxyFix(x_for=n)`; with 0, `X-Forwarded-For` is ignored so it cannot be spoofed. Set it to the exact number of reverse proxies in front of the app.
+- **HTTP 429** now carries a `Retry-After` header (seconds); blocked attempts are written to the server log (username truncated, address, wait).
+- Tests: `tests/test_throttle.py` (fake clock: lockout and Retry-After, isolation by address/user, address-wide cap, expiry, bounded size, header handling, setting validation).
 
-Known limitations:
-1. **Unbounded memory:** one entry is created per distinct username attempted, and entries are only pruned when the same key is tried again, so a flood of random usernames grows memory.
-2. **Client identification:** the key uses `request.remote_addr`. Behind a reverse proxy this is the proxy's address, so all clients look identical (one attacker can lock a user out for everybody, and per-IP separation is lost).
-3. **Single process:** each worker/process keeps its own counters and a restart resets them, so limits are weaker with several workers or after restarts.
-4. **Targeted lockout:** locking by username lets an attacker deliberately block a known username for the window.
-
-Recommended follow-up (not implemented):
-- Bound the store (maximum entries with expiry/LRU pruning) or move it to an Oracle table such as `LOGIN_ATTEMPTS` so it is shared and bounded.
-- Identify clients correctly behind a proxy using Werkzeug `ProxyFix` with the exact trusted hop count (never trust `X-Forwarded-For` from the open internet).
-- For multi-worker deployments use that shared store (Oracle table or Redis), not process memory.
-- Prefer progressive delays or per-IP + per-username limits over a hard lock, and log lockouts for monitoring.
-- Add tests for each change (bounded growth, proxy header handling, shared counters).
+Remaining limits: state is per process (resets on restart, not shared between several workers; for multiple workers use a shared store such as an Oracle table), no progressive delay, and the address-wide limit can block a whole office behind one NAT address for up to 5 minutes after 20 failures.

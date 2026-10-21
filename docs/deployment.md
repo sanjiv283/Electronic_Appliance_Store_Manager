@@ -33,4 +33,4 @@ Target: a Windows machine in the store (or a lab PC) with Oracle Database 21c XE
 - Password rotation: change the Oracle password with `ALTER USER appliance_app IDENTIFIED BY "..."` (as admin, in `XEPDB1`) and update `.env`; restart `serve.py`.
 
 ## 5. Known limits of this deployment
-Single server process (login throttle is in memory), no connection pool, no automatic TLS, session role changes apply at next sign-in. These are acceptable for a single-store deployment and are listed in the README.
+Single server process (the bounded login throttle is in memory: it resets on restart and is not shared between workers; behind a reverse proxy set `TRUSTED_PROXIES` in `.env` to the exact number of proxies so it sees real client addresses), no connection pool, no automatic TLS, session role changes apply at next sign-in. These are acceptable for a single-store deployment and are listed in the README.

@@ -187,7 +187,7 @@ Never commit `.env`; run `git status` before each commit. The app uses only `app
 
 ## 13. Known limitations
 
-- Login/roles are basic: two fixed roles, no self-registration, no password-reset e-mail (a manager resets passwords in the app, or an administrator runs `manage.py reset-password`), no multi-factor sign-in. Role and account changes take effect at the next sign-in (sessions last 8 hours). The login throttle is in-process (single server process, unbounded memory, not proxy-aware); see `docs/Review_3_Notes.md` for the deferred follow-up.
+- Login/roles are basic: two fixed roles, no self-registration, no password-reset e-mail (a manager resets passwords in the app, or an administrator runs `manage.py reset-password`), no multi-factor sign-in. Role and account changes take effect at the next sign-in (sessions last 8 hours). The login throttle is bounded and proxy-aware (`TRUSTED_PROXIES`), but in-process: it resets on restart and is not shared between several workers (see `docs/Review_3_Notes.md`).
 - Single-currency (₹) display; no returns/refunds, no tax or discount model; employees are seed-only (no CRUD screen).
 - `TRG_SALES_PROTECT_HISTORY` contains a documented `CLIENT_INFO = 'ITEST_CLEANUP'` bypass used only by integration tests in a test schema — remove it for a production-style deployment.
 - Header total vs. line totals consistency is enforced by the service (and reported by the view), not by a database constraint.

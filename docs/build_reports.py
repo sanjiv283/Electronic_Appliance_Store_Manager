@@ -18,9 +18,9 @@ sys.path.insert(0, ROOT)
 os.chdir(ROOT)
 MD, XML = "docs/Review_2_Report.md", "docs/test_results.xml"
 LABEL, PDF_OUT = "DBMS Review 2", "docs/Review_2_Report.pdf"   # build_review3.py overrides these
-PREFIX = {"test_config": "CFG", "test_services": "SVC", "test_routes": "RTE", "test_auth": "AUT", "test_oracle_integration": "INT"}
+PREFIX = {"test_config": "CFG", "test_services": "SVC", "test_routes": "RTE", "test_auth": "AUT", "test_throttle": "THR", "test_oracle_integration": "INT"}
 REMARK = {"CFG": "Pure logic", "SVC": "Fake DB connection - proves SQL/transaction logic, not Oracle behaviour",
-          "RTE": "Services stubbed; Flask test client", "AUT": "Flask test client, fake database", "INT": "Live Oracle 21c XE, separate test schema (student run 2026-10-22)"}
+          "RTE": "Services stubbed; Flask test client", "AUT": "Flask test client, fake database", "THR": "Fake clock; Flask test client", "INT": "Live Oracle 21c XE, separate test schema (student run 2026-10-22)"}
 RANK = {"FAILED": 3, "BLOCKED": 2, "NOT RUN": 1, "PASSED": 0}
 
 
@@ -48,7 +48,7 @@ def collect():
     return groups
 
 
-ORDER = ['test_config', 'test_services', 'test_routes', 'test_auth', 'test_oracle_integration']
+ORDER = ['test_config', 'test_services', 'test_routes', 'test_auth', 'test_throttle', 'test_oracle_integration']
 
 
 def matrix_md():
