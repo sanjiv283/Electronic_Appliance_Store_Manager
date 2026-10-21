@@ -88,7 +88,7 @@ def delete(user_id, acting_user_id):
     row = db.fetch_one("SELECT ROLE FROM USERS WHERE USER_ID = :id", {"id": uid})
     if not row:
         raise NotFoundError("User not found.")
-    if row["role"] == "MANAGER" and \
-            db.fetch_one("SELECT COUNT(*) AS n FROM USERS WHERE ROLE = 'MANAGER'")["n"] <= 1:
-        raise ConflictError("The last manager account cannot be deleted.")
+    if row["role"] == "MANAGER":      # also guarantees the last manager can never be removed
+        raise ConflictError("Manager accounts cannot be deleted in the app. "
+                            "A database administrator can remove one with SQL if truly needed.")
     db.execute("DELETE FROM USERS WHERE USER_ID = :id", {"id": uid})

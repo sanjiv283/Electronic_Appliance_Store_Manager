@@ -9,7 +9,7 @@ import pytest
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import app as app_module
-from services import categories, customers, employees, products, reports, sales, users
+from services import categories, customers, database, employees, products, reports, sales, users
 from services.errors import ConflictError, ValidationError
 
 MANAGER = {"id": 1, "username": "meera", "role": "MANAGER", "employee_id": 9, "name": "Meera Nair"}
@@ -249,14 +249,14 @@ def test_authenticate_accepts_only_the_right_password(fake_db):
     assert users.authenticate("ghost", "whatever-123") is None
 
 
-def test_cannot_delete_own_or_last_manager_account(fake_db):
-    """Delete own account / the only manager | ConflictError; deleting another cashier works"""
-    fake_db([{"match": "SELECT ROLE FROM USERS", "cols": ["ROLE"], "rows": [("MANAGER",)]},
-             {"match": "COUNT(*)", "cols": ["N"], "rows": [(1,)]}])
+def test_cannot_delete_own_account_or_any_manager_account(fake_db):
+    """Delete own account / another manager | ConflictError and no DELETE; deleting a cashier works"""
+    conn = fake_db([{"match": "SELECT ROLE FROM USERS", "cols": ["ROLE"], "rows": [("MANAGER",)]}])
     with pytest.raises(ConflictError, match="own account"):
         users.delete(1, 1)
-    with pytest.raises(ConflictError, match="last manager"):
+    with pytest.raises(ConflictError, match="Manager accounts cannot be deleted"):
         users.delete(5, 1)
+    assert not [s for s in conn.sql_log() if s.startswith("DELETE")]
     conn = fake_db([{"match": "SELECT ROLE FROM USERS", "cols": ["ROLE"], "rows": [("CASHIER",)]}])
     users.delete(7, 1)
     assert any(s.startswith("DELETE FROM USERS") for s in conn.sql_log())
@@ -323,7 +323,8 @@ def test_users_and_employee_pages_render_for_manager(application, monkeypatch):
     assert c.get("/employees").status_code == 200
     html = c.get("/users").get_data(as_text=True)
     assert "meera" in html and "never" in html and 'type="password"' in html
-    assert html.count("/delete") == 1          # no delete button for your own account
+    assert html.count("/delete") == 1 and "/users/2/delete" in html     # only the cashier can be deleted
+    assert "you" in html and "protected" not in html                    # (single manager here = the signed-in user)
 
 
 def test_manage_cli_reports_missing_configuration_cleanly(monkeypatch, capsys):
@@ -398,8 +399,8 @@ def test_delete_blocks_own_account_when_session_id_is_text(fake_db):
     assert not [s for s in conn.sql_log() if s.startswith("DELETE")]
 
 
-def test_users_page_hides_delete_on_own_row_with_real_oracle_types(application, monkeypatch, fake_db):
-    """Sign in through the real authenticate() with Decimal ids, then open /users | own row shows 'you' with no Delete button; only the other manager can be deleted"""
+def test_users_page_hides_delete_on_manager_rows_with_real_oracle_types(application, monkeypatch, fake_db):
+    """Sign in through the real authenticate() with Decimal ids, then open /users | own row shows 'you', the other manager shows 'protected'; no Delete button on either"""
     h = generate_password_hash("correct-horse-1")
     fake_db([{"match": "FROM USERS u JOIN", "cols": COLS, "rows": [(Decimal("3"), "sanjiv", h, "MANAGER", Decimal("29"), "Sanjiv")]},
              {"match": "UPDATE USERS SET LAST_LOGIN"}])
@@ -411,4 +412,29 @@ def test_users_page_hides_delete_on_own_row_with_real_oracle_types(application, 
         {"user_id": Decimal("4"), "username": "animesh", "role": "MANAGER", "full_name": "Animesh", "job_title": "Admin", "last_login": None}])
     monkeypatch.setattr(employees, "list_without_user", lambda: [])
     html = c.get("/users").get_data(as_text=True)
-    assert html.count("/delete") == 1 and "/users/4/delete" in html and "/users/3/delete" not in html
+    assert "/delete" not in html                       # own row says 'you'; the other manager is 'protected'
+    assert ">you<" in html and ">protected<" in html
+
+
+def test_users_page_offers_delete_only_for_cashiers(application, monkeypatch):
+    """Two managers and one cashier listed | exactly one Delete button, and it belongs to the cashier"""
+    when = datetime.datetime(2026, 1, 2, 3, 4)
+    monkeypatch.setattr(employees, "list_without_user", lambda: [])
+    monkeypatch.setattr(users, "list_all", lambda: [
+        {"user_id": 1, "username": "meera", "role": "MANAGER", "full_name": "A", "job_title": "J", "last_login": when},
+        {"user_id": 5, "username": "animesh", "role": "MANAGER", "full_name": "B", "job_title": "J", "last_login": None},
+        {"user_id": 9, "username": "testcashier", "role": "CASHIER", "full_name": "C", "job_title": "C", "last_login": None}])
+    html = signed_in(application, MANAGER).get("/users").get_data(as_text=True)
+    assert html.count("/delete") == 1 and "/users/9/delete" in html
+
+
+def test_delete_manager_via_route_is_refused_with_409(application, monkeypatch):
+    """POST /users/<manager id>/delete as a manager | HTTP 409 and nothing deleted"""
+    called = []
+    monkeypatch.setattr(database, "fetch_one", lambda sql, params=None, conn=None: {"role": "MANAGER"})
+    monkeypatch.setattr(database, "execute", lambda *a, **k: called.append(a))
+    c = signed_in(application, MANAGER)
+    with c.session_transaction() as s:
+        s["csrf"] = "tok"
+    resp = c.post("/users/5/delete", data={"csrf_token": "tok"})
+    assert resp.status_code == 409 and called == []
