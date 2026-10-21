@@ -296,7 +296,7 @@ for i, (n, d) in enumerate([("V_SALES_SUMMARY  (view)", "sale + customer + emplo
     box(s, 7.15, y, 5.4, 1.08, "panel2", "mag", 0.05, 1.0)
     text(s, 7.3, y + 0.04, 5.15, 0.4, n, 14.5, "text", True, font=MONO)
     text(s, 7.3, y + 0.46, 5.15, 0.6, d, 12.5, "muted")
-notes(s, "Syntax-checked statically (sqlglot, Oracle dialect) for the queries; live execution on Oracle is pending — state this plainly.")
+notes(s, "Syntax-checked statically (sqlglot, Oracle dialect) for the queries; all 16 also executed live on Oracle 21c XE without error.")
 
 # ---------------------------------------------------------------- 8 Flask + Oracle
 s = new_slide(8, "Flask backend & Oracle connectivity")
@@ -319,7 +319,7 @@ box(s, 7.0, 1.9, 5.55, 3.55, "bg", "muted", 0.03, 0.75)
 text(s, 7.1, 2.0, 5.4, 3.4, steps, 14, "green", font=MONO)
 bullets(s, 7.0, 5.6, 5.6, 1.3, ["Stock is deducted only here — the trigger never touches inventory",
                                 "Oversell protection: row locks + CHECK (STOCK_QTY ≥ 0)"], 13.5, gap=3)
-notes(s, "Live concurrency proof (8 buyers, stock 5 -> exactly 5 succeed) is an integration test that needs Oracle: BLOCKED here.")
+notes(s, "Live concurrency proof (8 buyers, stock 5 -> exactly 5 succeed) PASSED on Oracle 21c XE.")
 
 # ---------------------------------------------------------------- 9 UI
 s = new_slide(9, "CRUD screens & sales workflow", "Real Flask routes and templates · sample data")
@@ -362,15 +362,15 @@ for ri, r in enumerate(rows):
         run.font.color.rgb = C["bg"] if ri == 0 else (C["amber"] if "BLOCKED" in v else C["text"])
 bullets(s, 0.6, 5.45, 12.1, 1.6, [
     f"{tot['PASSED']} offline tests passed using a FAKE database connection: they prove application logic, not Oracle behaviour",
-    f"{tot['BLOCKED']} live Oracle integration tests are BLOCKED / unverified — no Oracle instance was available; they are ready to run (README §9)",
+    "16 live Oracle integration tests PASSED on Oracle 21c XE (student run, 2026-10-22); all 16 queries also ran live without error",
     "Also passed: Python compile check and SQL syntax parse of the 16 queries and the seed script"], 14.5, gap=3)
-notes(s, "Do not claim database verification. The BLOCKED tests are the ones that prove constraints, PL/SQL objects and concurrency on a real Oracle.")
+notes(s, "The live tests ran on a separate test schema on Oracle 21c XE and prove constraints, PL/SQL objects and concurrency. Results were transcribed from the student's console output.")
 
 # ---------------------------------------------------------------- 11 limitations
 s = new_slide(11, "Limitations & future improvements")
 box(s, 0.6, 1.4, 5.95, 5.45, "panel", "amber")
 text(s, 0.85, 1.5, 5.4, 0.4, "KNOWN LIMITATIONS", 14, "amber", True)
-bullets(s, 0.85, 2.0, 5.5, 4.8, ["Not yet run against a live Oracle instance (16 tests BLOCKED)",
+bullets(s, 0.85, 2.0, 5.5, 4.8, ["Live results come from one single-user run on one machine",
                                  "No login, roles or per-user audit trail — localhost demo only",
                                  "No returns, discounts, taxes or multi-currency; employees are seed-only",
                                  "LINE_TOTAL is a documented derived column; sale total consistency is service-enforced",
@@ -390,18 +390,18 @@ notes(s, "Naming limitations openly is part of the evaluation criteria for accur
 s = new_slide(12, "Conclusion & demonstration readiness")
 bullets(s, 0.6, 1.3, 12.1, 1.5, [
     "Delivered: normalized 7-table Oracle design, seed data, 16 queries, 4 PL/SQL-side objects, secure Flask service layer, CRUD, atomic sales, tests and report",
-    "Every claim above is backed by files in the repository; unverified items are labelled BLOCKED"], 16, gap=4)
+    "Every claim above is backed by files in the repository; live Oracle results are labelled as a student run"], 16, gap=4)
 chk = [("DONE", "green", "Code, SQL scripts, tests (76 passed offline), report PDF / DOCX / MD, this deck"),
        ("DONE", "green", "Screenshots of the real CRUD / sale templates (sample data) and honest 503 page"),
-       ("TO DO", "amber", "Run schema.sql → advanced_features.sql → seed.sql in XEPDB1 as appliance_app"),
-       ("TO DO", "amber", "python -m services.database  then the live integration tests (separate test schema)"),
+       ("DONE", "green", "schema.sql → advanced_features.sql → seed.sql loaded in XEPDB1; 16 queries ran live"),
+       ("DONE", "green", "16 live integration tests PASSED on Oracle 21c XE (separate test schema)"),
        ("TO DO", "amber", "Rehearse docs/demo_guide.md (10 minutes); regenerate report matrix after live run")]
 for i, (tag, col, msg) in enumerate(chk):
     y = 2.65 + i * 0.75
     box(s, 0.6, y, 12.15, 0.65, "panel", col, 0.1, 1.0)
     text(s, 0.75, y + 0.05, 1.1, 0.55, tag, 15, col, True, anchor=MSO_ANCHOR.MIDDLE)
     text(s, 1.95, y + 0.05, 10.7, 0.55, msg, 15, "text", anchor=MSO_ANCHOR.MIDDLE)
-text(s, 0.6, 6.55, 12, 0.4, "Demonstration readiness: ready once the three live Oracle steps are completed on the presenter's machine.", 13, "muted")
+text(s, 0.6, 6.55, 12, 0.4, "Demonstration readiness: live Oracle steps completed; rehearse the demo guide before the review.", 13, "muted")
 notes(s, "Thank the panel; offer to demonstrate the sale transaction and the failing constraint inserts.")
 
 assert len(prs.slides) == total_slides

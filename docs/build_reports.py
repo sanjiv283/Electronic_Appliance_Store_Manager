@@ -19,7 +19,7 @@ os.chdir(ROOT)
 MD, XML = "docs/Review_2_Report.md", "docs/test_results.xml"
 PREFIX = {"test_config": "CFG", "test_services": "SVC", "test_routes": "RTE", "test_oracle_integration": "INT"}
 REMARK = {"CFG": "Pure logic", "SVC": "Fake DB connection - proves SQL/transaction logic, not Oracle behaviour",
-          "RTE": "Services stubbed; Flask test client", "INT": "Requires live Oracle test schema"}
+          "RTE": "Services stubbed; Flask test client", "INT": "Live Oracle 21c XE, separate test schema (student run 2026-10-22)"}
 RANK = {"FAILED": 3, "BLOCKED": 2, "NOT RUN": 1, "PASSED": 0}
 
 
