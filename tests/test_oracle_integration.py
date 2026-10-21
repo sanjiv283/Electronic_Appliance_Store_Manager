@@ -204,9 +204,9 @@ def test_procedure_restock_and_errors(conn, world):
 
 def test_function_customer_total_spend(conn, world):
     """FN_CUSTOMER_TOTAL_SPEND | 0 before sales, equals sale total after, ORA-20010 for unknown customer"""
-    assert scalar(conn, "SELECT FN_CUSTOMER_TOTAL_SPEND(:c) FROM DUAL", c=world["cust"]) == 0
+    assert scalar(conn, "SELECT FN_CUSTOMER_TOTAL_SPEND(:cid) FROM DUAL", cid=world["cust"]) == 0
     r = sales.create_sale(world["cust"], world["emp"], "UPI", [(world["p1"], 2), (world["p2"], 1)])
-    assert Decimal(str(scalar(conn, "SELECT FN_CUSTOMER_TOTAL_SPEND(:c) FROM DUAL", c=world["cust"]))) == r["total"]
+    assert Decimal(str(scalar(conn, "SELECT FN_CUSTOMER_TOTAL_SPEND(:cid) FROM DUAL", cid=world["cust"]))) == r["total"]
     with conn.cursor() as cur:
         with pytest.raises(oracledb.DatabaseError) as e:
             cur.execute("SELECT FN_CUSTOMER_TOTAL_SPEND(-999) FROM DUAL")
