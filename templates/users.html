@@ -16,7 +16,7 @@
     <label>Repeat password <input type="password" name="password_confirm" required minlength="10" maxlength="128" autocomplete="new-password"></label>
     <div class="actions"><button class="btn" type="submit">Create account</button></div>
   </form>
-  <p class="muted">Manager: full access. Cashier: new sales, sales history, customers, read-only products.</p>
+  <p class="muted">Manager: full access (manager accounts cannot be deleted in the app). Cashier: new sales, sales history, customers, read-only products.</p>
   {% else %}<p class="empty">Every employee already has an account. Add an employee first.</p>{% endif %}
 </section>
 <section class="card">
@@ -34,7 +34,7 @@
                 <label class="sr-only" for="nc{{ u.user_id }}">Repeat</label>
                 <input id="nc{{ u.user_id }}" type="password" name="password_confirm" required minlength="10" maxlength="128" placeholder="repeat" autocomplete="new-password">
                 <button class="btn btn-sm" type="submit">Reset</button></form></td>
-          <td class="row-actions">{% if u.user_id != current_user().id %}{{ delete_form(url_for('users_delete', item_id=u.user_id), 'account ' ~ u.username) }}{% else %}<span class="muted">you</span>{% endif %}</td></tr>{% endfor %}</tbody>
+          <td class="row-actions">{% if u.user_id == current_user().id %}<span class="muted">you</span>{% elif u.role == 'MANAGER' %}<span class="muted">protected</span>{% else %}{{ delete_form(url_for('users_delete', item_id=u.user_id), 'account ' ~ u.username) }}{% endif %}</td></tr>{% endfor %}</tbody>
   </table></div>
   {% else %}<p class="empty">No accounts yet. Create the first manager with <code>python manage.py create-user</code>.</p>{% endif %}
 </section>

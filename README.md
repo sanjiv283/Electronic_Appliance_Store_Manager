@@ -126,7 +126,7 @@ The e-mail must belong to an existing employee (the seed has `Meera Nair`, Store
 | Employees, user accounts | full CRUD | no |
 | Change own password | yes | yes |
 
-Rules: every page except `/login` and `/health` requires sign-in (default deny); 5 failed sign-ins for a user within 5 minutes are blocked for a while (HTTP 429); sessions last 8 hours; sign-out is a POST; passwords need at least 10 characters; a manager cannot delete their own account or the last manager.
+Rules: every page except `/login` and `/health` requires sign-in (default deny); 5 failed sign-ins for a user within 5 minutes are blocked for a while (HTTP 429); sessions last 8 hours; sign-out is a POST; passwords need at least 10 characters; manager accounts cannot be deleted in the app (only cashier accounts can; a database administrator can remove a manager with SQL, see `docs/deployment.md`), which also means you can never delete your own account or the last manager.
 
 ## 8. Run the application
 
