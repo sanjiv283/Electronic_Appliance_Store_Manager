@@ -112,6 +112,7 @@ The app now requires sign-in. There are **no default accounts or passwords**. Af
 ```bat
 python manage.py create-user meera MANAGER meera.nair@applstore-demo.example.com
 python manage.py list-users
+python manage.py reset-password meera     # forgotten password: prompts twice, hidden
 ```
 
 The e-mail must belong to an existing employee (the seed has `Meera Nair`, Store Manager). Then sign in at <http://127.0.0.1:5000/login>. Managers create further accounts under **User accounts** and employees under **Employees**.
@@ -140,7 +141,7 @@ Production-style run (waitress, no debug): `python serve.py` -> <http://127.0.0.
 ## 9. Tests
 
 ```powershell
-python -m pytest tests -v                      # unit + route tests (no Oracle needed); live tests show as BLOCKED
+python -m pytest tests -v                      # unit + route + auth tests (no Oracle needed); live tests show as BLOCKED unless enabled below
 ```
 
 Live Oracle integration tests need a **separate test schema** (never your populated demo schema). Create it with `setup_user.sql` (answer `appliance_test` at the first prompt), load `schema.sql` and `advanced_features.sql` into it, then:
@@ -176,6 +177,7 @@ Follow `docs/demo_guide.md` (10-minute script with SQL to paste).
 | `ORA-00942` on `USERS` / sign-in fails with a database error | `auth.sql` not loaded (§7). |
 | Cannot sign in; no accounts exist | Create the first manager with `python manage.py create-user` (§8a). |
 | Sign-in loops back to the login page with `APP_ENV=production` over http | Secure cookies need HTTPS; use `APP_ENV=development` for a local http demo. |
+| `ORA-20999` "Run this script as the application user…" | `schema.sql`/`seed.sql`/`auth.sql`/`advanced_features.sql` were run as SYS/SYSTEM or in `CDB$ROOT`. Run them as `appliance_app` in `XEPDB1` (§7). |
 | Port 5000 in use | Stop the other process or edit the port at the bottom of `app.py`. |
 | `ORA-30006` resource busy during a sale | Another session holds the product row lock; retry. |
 
@@ -185,7 +187,7 @@ Never commit `.env`; run `git status` before each commit. The app uses only `app
 
 ## 13. Known limitations
 
-- Login/roles are basic: two fixed roles, no self-registration, no password-reset e-mail (a manager resets passwords), no multi-factor sign-in. Role and account changes take effect at the next sign-in (sessions last 8 hours). The login throttle is in-process (single server process, unbounded memory, not proxy-aware); see `docs/Review_3_Notes.md` for the deferred follow-up.
+- Login/roles are basic: two fixed roles, no self-registration, no password-reset e-mail (a manager resets passwords in the app, or an administrator runs `manage.py reset-password`), no multi-factor sign-in. Role and account changes take effect at the next sign-in (sessions last 8 hours). The login throttle is in-process (single server process, unbounded memory, not proxy-aware); see `docs/Review_3_Notes.md` for the deferred follow-up.
 - Single-currency (₹) display; no returns/refunds, no tax or discount model; employees are seed-only (no CRUD screen).
 - `TRG_SALES_PROTECT_HISTORY` contains a documented `CLIENT_INFO = 'ITEST_CLEANUP'` bypass used only by integration tests in a test schema — remove it for a production-style deployment.
 - Header total vs. line totals consistency is enforced by the service (and reported by the view), not by a database constraint.

@@ -29,7 +29,7 @@ Target: a Windows machine in the store (or a lab PC) with Oracle Database 21c XE
 - Logs: application errors go to the console/stderr of `serve.py` (no passwords or SQL are shown to users).
 - Backups: use Oracle Data Pump (`expdp`) or RMAN on the `XEPDB1` schema regularly; test a restore.
 - Removing a manager: the app deliberately offers no delete for manager accounts. If one must go, a database administrator runs, as `appliance_app` (after confirming at least one other manager exists): `DELETE FROM USERS WHERE USERNAME = '<name>'; COMMIT;` The person's employee record and sales stay. An already signed-in session for that person lasts up to 8 hours.
-- Accounts: managers manage users in the web UI; `python manage.py list-users` lists accounts. If every manager password is lost, create a new manager with `manage.py` (needs `.env` access on the server).
+- Accounts: managers manage users in the web UI; `python manage.py list-users` lists accounts. If a password is forgotten, `python manage.py reset-password <username>` sets a new one (hidden prompts; needs `.env` access on the server). Without any manager account, create one with `manage.py create-user`.
 - Password rotation: change the Oracle password with `ALTER USER appliance_app IDENTIFIED BY "..."` (as admin, in `XEPDB1`) and update `.env`; restart `serve.py`.
 
 ## 5. Known limits of this deployment

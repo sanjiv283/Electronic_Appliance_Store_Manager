@@ -10,6 +10,19 @@ SET DEFINE OFF
 SET SERVEROUTPUT ON
 SET LINESIZE 200
 
+WHENEVER SQLERROR EXIT FAILURE
+
+-- Safety guard: refuse to create application objects as SYS/SYSTEM or in CDB$ROOT.
+BEGIN
+  IF SYS_CONTEXT('USERENV', 'CURRENT_USER') IN ('SYS', 'SYSTEM')
+     OR SYS_CONTEXT('USERENV', 'CON_NAME') = 'CDB$ROOT' THEN
+    RAISE_APPLICATION_ERROR(-20999,
+      'Run this script as the application user in XEPDB1 (sqlplus appliance_app@localhost:1521/XEPDB1), not SYS/SYSTEM or CDB$ROOT.');
+  END IF;
+END;
+/
+WHENEVER SQLERROR CONTINUE
+
 -- ---------------------------------------------------------------------
 -- 1. VIEW  V_SALES_SUMMARY
 -- Purpose: one row per sale with customer, employee, line/unit counts and
