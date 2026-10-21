@@ -129,7 +129,7 @@ def plain(s):
 
 
 # ------------------------------------------------------------------ DOCX
-def build_docx(blocks):
+def build_docx(blocks, out="docs/Review_2_Report.docx"):
     from docx import Document
     from docx.enum.text import WD_BREAK
     from docx.oxml import OxmlElement
@@ -193,7 +193,7 @@ def build_docx(blocks):
                         r.font.size = Pt(8)
                         r.bold = bool(r.bold) or ri == 0
             doc.add_paragraph()
-    doc.save("docs/Review_2_Report.docx")
+    doc.save(out)
 
 
 # ------------------------------------------------------------------ PDF

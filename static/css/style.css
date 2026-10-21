@@ -872,3 +872,14 @@ form.inline {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Review 3: sign-in, account and user pages ─────────────────────────── */
+.auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+.auth-card { width: 100%; max-width: 26rem; }
+.auth-card-wide { max-width: 32rem; }
+.auth-brand { color: var(--cyan); font-weight: 700; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .5rem; }
+.stack-form { display: grid; gap: .9rem; margin: 1rem 0; }
+.user-box { display: grid; gap: .25rem; margin-bottom: .75rem; font-size: .85rem; }
+.user-box span { color: var(--muted); }
+.user-box a { color: var(--cyan); }
+.sold-by { align-self: end; padding-bottom: .5rem; }

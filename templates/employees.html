@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, delete_form, pager %}
+{% block title %}Employees{% endblock %}
+{% block content %}
+<h1>Employees</h1>
+<section class="card">
+  <h2>{{ 'Edit employee' if edit else 'Add employee' }}</h2>
+  <form method="post" action="{{ url_for('employees_update', item_id=edit.employee_id) if edit else url_for('employees_create') }}" class="grid-form">
+    {{ csrf() }}
+    <label>Full name <input name="full_name" required maxlength="100" value="{{ edit.full_name if edit }}"></label>
+    <label>Email <input type="email" name="email" required maxlength="120" value="{{ edit.email if edit }}"></label>
+    <label>Phone <input type="tel" name="phone" maxlength="20" pattern="\+?[0-9][0-9 \-()]{5,18}" title="7-15 digits; spaces, +, -, ( ) allowed" value="{{ edit.phone or '' if edit }}"></label>
+    <label>Job title <input name="job_title" required maxlength="60" value="{{ edit.job_title if edit }}"></label>
+    <label>Hire date <input type="date" name="hire_date" required value="{{ edit.hire_date.strftime('%Y-%m-%d') if edit }}"></label>
+    <div class="actions"><button class="btn" type="submit">{{ 'Save changes' if edit else 'Add employee' }}</button>
+      {% if edit %}<a class="btn btn-secondary" href="{{ url_for('employees_page') }}">Cancel</a>{% endif %}</div>
+  </form>
+</section>
+<section class="card">
+  <form method="get" class="search"><label class="sr-only" for="q">Search</label>
+    <input id="q" name="q" value="{{ q }}" placeholder="Name, email or job title"><button class="btn" type="submit">Search</button>
+    {% if q %}<a href="{{ url_for('employees_page') }}">Clear</a>{% endif %}</form>
+  {% if data.rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Job title</th><th>Email</th><th>Phone</th><th>Hired</th><th>Actions</th></tr></thead>
+    <tbody>{% for e in data.rows %}
+      <tr><td>{{ e.full_name }}</td><td>{{ e.job_title }}</td><td>{{ e.email }}</td><td>{{ e.phone or '' }}</td>
+          <td>{{ e.hire_date.strftime('%Y-%m-%d') }}</td>
+          <td class="row-actions"><a class="btn btn-secondary btn-sm" href="{{ url_for('employees_page', edit=e.employee_id) }}">Edit</a>
+            {{ delete_form(url_for('employees_delete', item_id=e.employee_id), 'employee ' ~ e.full_name) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="empty">No employees found.</p>{% endif %}
+  {{ pager(data, 'employees_page', q=q) }}
+</section>
+{% endblock %}

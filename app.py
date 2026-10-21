@@ -2,32 +2,69 @@
 import hmac
 import logging
 import secrets
+import time
+from datetime import timedelta
 from decimal import Decimal
 
 from dotenv import load_dotenv
 from flask import (Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for)
 
 import config
-from services import (categories, customers, database, employees, products, reports, sales, suppliers)
+from services import (categories, customers, database, employees, products, reports, sales, suppliers, users)
 from services.errors import AppError
 
 log = logging.getLogger("appliance_store")
 
+# ---- access control (Review 3) ------------------------------------------------
+PUBLIC_ENDPOINTS = {"login", "health", "static"}
+# Default deny: a CASHIER may call only these endpoints; MANAGER may call everything.
+CASHIER_ENDPOINTS = {"products_page", "customers_page", "customers_create", "customers_update",
+                     "sales_new", "sales_create", "sales_page", "sale_detail", "logout", "account_password"}
+LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS = 5, 300
+
+
+def is_allowed(role, endpoint):
+    return role == "MANAGER" or (role == "CASHIER" and endpoint in CASHIER_ENDPOINTS)
+
+
+def safe_next(target, fallback):
+    """Only same-site relative paths are accepted (prevents open redirects)."""
+    if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
+        return target
+    return fallback
+
 
 def create_app(test_config=None):
     app = Flask(__name__)
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)   # Flask default is 31 days
     if test_config is None:
         load_dotenv()
         app.config.update(config.load_flask_config())
     else:
         app.config.update(test_config)
     app.config.setdefault("CSRF_ENABLED", True)
+    failures = {}   # ponytail: in-process login throttle; use a shared store if run with several workers
+
+    def current_user():
+        return session.get("user")
 
     # ---- security plumbing ------------------------------------------------
     def csrf_token():
         if "csrf" not in session:
             session["csrf"] = secrets.token_urlsafe(32)
         return session["csrf"]
+
+    @app.before_request
+    def require_login():
+        endpoint = request.endpoint
+        if endpoint is None or endpoint in PUBLIC_ENDPOINTS:
+            return None
+        user = current_user()
+        if not user:
+            return redirect(url_for("login", next=request.full_path.rstrip("?") if request.method == "GET" else None), 302)
+        if not is_allowed(user["role"], endpoint):
+            abort(403, "Your role does not have permission to do this.")
+        return None
 
     @app.before_request
     def protect_state_changes():
@@ -45,6 +82,8 @@ def create_app(test_config=None):
         return resp
 
     app.jinja_env.globals["csrf_token"] = csrf_token
+    app.jinja_env.globals["current_user"] = current_user
+    app.jinja_env.globals["allowed"] = lambda endpoint: bool(current_user()) and is_allowed(current_user()["role"], endpoint)
     app.jinja_env.filters["money"] = lambda x: "₹{:,.2f}".format(Decimal(str(x or 0)))
 
     # ---- error handling ---------------------------------------------------
@@ -62,6 +101,8 @@ def create_app(test_config=None):
     @app.errorhandler(400)
     @app.errorhandler(404)
     @app.errorhandler(405)
+    @app.errorhandler(403)
+    @app.errorhandler(429)
     def http_error(exc):
         return show_error(exc.description, exc.code)
 
@@ -82,6 +123,45 @@ def create_app(test_config=None):
     def done(message, endpoint, **values):
         flash(message, "success")
         return redirect(url_for(endpoint, **values), 303)
+
+    # ---- authentication ---------------------------------------------------
+    def landing(user):
+        return url_for("dashboard") if user["role"] == "MANAGER" else url_for("sales_new")
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        target = request.values.get("next", "")
+        if request.method == "GET":
+            if current_user():
+                return redirect(landing(current_user()))
+            return render_template("login.html", next=target)
+        name = (request.form.get("username") or "").strip().lower()
+        key, now = (name, request.remote_addr), time.time()
+        recent = [t for t in failures.get(key, []) if now - t < LOGIN_WINDOW_SECONDS]
+        if len(recent) >= LOGIN_MAX_FAILURES:
+            abort(429, "Too many failed sign-in attempts. Wait a few minutes and try again.")
+        user = users.authenticate(name, request.form.get("password"))
+        if not user:
+            failures[key] = recent + [now]
+            return render_template("login.html", next=target, error="Invalid username or password."), 401
+        failures.pop(key, None)
+        session.clear()                       # new session after login (prevents fixation)
+        session["user"] = user
+        session.permanent = True
+        return redirect(safe_next(target, landing(user)), 303)
+
+    @app.post("/logout")
+    def logout():
+        session.clear()
+        flash("You have been signed out.", "success")
+        return redirect(url_for("login"), 303)
+
+    @app.route("/account/password", methods=["GET", "POST"])
+    def account_password():
+        if request.method == "POST":
+            users.change_own_password(current_user()["id"], request.form)
+            return done("Password changed.", "account_password")
+        return render_template("account.html")
 
     # ---- health -----------------------------------------------------------
     @app.get("/health")
@@ -196,13 +276,13 @@ def create_app(test_config=None):
 
     @app.get("/sales/new")
     def sales_new():
-        return render_template("sale_new.html", customers=customers.list_all(), employees=employees.list_all(),
+        return render_template("sale_new.html", customers=customers.list_all(),
                                products=products.list_for_sale(), payment_methods=sales.PAYMENT_METHODS)
 
     @app.post("/sales/new")
     def sales_create():
         items = sales.parse_items(request.form.getlist("product_id"), request.form.getlist("quantity"))
-        result = sales.create_sale(request.form.get("customer_id"), request.form.get("employee_id"),
+        result = sales.create_sale(request.form.get("customer_id"), current_user()["employee_id"],
                                    request.form.get("payment_method"), items)
         return done(f"Sale {result['invoice_no']} recorded. Total {result['total']}.",
                     "sale_detail", sale_id=result["sale_id"])
@@ -210,6 +290,49 @@ def create_app(test_config=None):
     @app.get("/sales/<int:sale_id>")
     def sale_detail(sale_id):
         return render_template("sale_detail.html", **sales.get(sale_id))
+
+    # ---- employees (manager) ------------------------------------------------
+    @app.get("/employees")
+    def employees_page():
+        q = request.args.get("q", "").strip()
+        edit = employees.get(request.args["edit"]) if request.args.get("edit") else None
+        return render_template("employees.html", data=employees.list_page(q, page_arg()), q=q, edit=edit)
+
+    @app.post("/employees")
+    def employees_create():
+        employees.create(request.form)
+        return done("Employee added.", "employees_page")
+
+    @app.post("/employees/<int:item_id>/update")
+    def employees_update(item_id):
+        employees.update(item_id, request.form)
+        return done("Employee updated.", "employees_page")
+
+    @app.post("/employees/<int:item_id>/delete")
+    def employees_delete(item_id):
+        employees.delete(item_id)
+        return done("Employee deleted.", "employees_page")
+
+    # ---- user accounts (manager) ------------------------------------------
+    @app.get("/users")
+    def users_page():
+        return render_template("users.html", rows=users.list_all(), candidates=employees.list_without_user(),
+                               roles=users.ROLES)
+
+    @app.post("/users")
+    def users_create():
+        users.create(request.form)
+        return done("User account created.", "users_page")
+
+    @app.post("/users/<int:item_id>/password")
+    def users_reset_password(item_id):
+        users.reset_password(item_id, request.form)
+        return done("Password reset.", "users_page")
+
+    @app.post("/users/<int:item_id>/delete")
+    def users_delete(item_id):
+        users.delete(item_id, current_user()["id"])
+        return done("User account deleted.", "users_page")
 
     # ---- reports ----------------------------------------------------------
     @app.get("/reports")
