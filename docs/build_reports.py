@@ -17,9 +17,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 os.chdir(ROOT)
 MD, XML = "docs/Review_2_Report.md", "docs/test_results.xml"
-PREFIX = {"test_config": "CFG", "test_services": "SVC", "test_routes": "RTE", "test_oracle_integration": "INT"}
+LABEL, PDF_OUT = "DBMS Review 2", "docs/Review_2_Report.pdf"   # build_review3.py overrides these
+PREFIX = {"test_config": "CFG", "test_services": "SVC", "test_routes": "RTE", "test_auth": "AUT", "test_oracle_integration": "INT"}
 REMARK = {"CFG": "Pure logic", "SVC": "Fake DB connection - proves SQL/transaction logic, not Oracle behaviour",
-          "RTE": "Services stubbed; Flask test client", "INT": "Live Oracle 21c XE, separate test schema (student run 2026-10-22)"}
+          "RTE": "Services stubbed; Flask test client", "AUT": "Flask test client, fake database", "INT": "Live Oracle 21c XE, separate test schema (student run 2026-10-22)"}
 RANK = {"FAILED": 3, "BLOCKED": 2, "NOT RUN": 1, "PASSED": 0}
 
 
@@ -47,7 +48,7 @@ def collect():
     return groups
 
 
-ORDER = ['test_config', 'test_services', 'test_routes', 'test_oracle_integration']
+ORDER = ['test_config', 'test_services', 'test_routes', 'test_auth', 'test_oracle_integration']
 
 
 def matrix_md():
@@ -140,7 +141,7 @@ def build_docx(blocks, out="docs/Review_2_Report.docx"):
     doc.styles["Normal"].font.name = "Calibri"
     doc.styles["Normal"].font.size = Pt(11)
     footer = doc.sections[0].footer.paragraphs[0]
-    footer.text = "Electronic Appliance Store Management System - DBMS Review 2 - Page "
+    footer.text = f"Electronic Appliance Store Management System - {LABEL} - Page "
     run = footer.add_run()
     for kind, txt in (("begin", None), (None, "PAGE"), ("end", None)):
         el = OxmlElement("w:fldChar" if kind else "w:instrText")
@@ -218,7 +219,7 @@ def build_pdf(blocks):
     def footer(canvas, doc):
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
-        canvas.drawString(15 * mm, 8 * mm, "Electronic Appliance Store Management System - DBMS Review 2")
+        canvas.drawString(15 * mm, 8 * mm, f"Electronic Appliance Store Management System - {LABEL}")
         canvas.drawRightString(doc.pagesize[0] - 15 * mm, 8 * mm, f"Page {doc.page}")
         canvas.restoreState()
 
@@ -250,9 +251,9 @@ def build_pdf(blocks):
             t.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
                                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
             story += [t, Spacer(1, 6)]
-    SimpleDocTemplate("docs/Review_2_Report.pdf", pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,
+    SimpleDocTemplate(PDF_OUT, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,
                       topMargin=15 * mm, bottomMargin=15 * mm, author="Sanjiv Shine Fernandas",
-                      title="Electronic Appliance Store Management System - Review 2"
+                      title=f"Electronic Appliance Store Management System - {LABEL}"
                       ).build(story, onFirstPage=footer, onLaterPages=footer)
 
 
