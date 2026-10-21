@@ -15,6 +15,16 @@
 SET DEFINE OFF
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
+-- Safety guard: refuse to create application objects as SYS/SYSTEM or in CDB$ROOT.
+BEGIN
+  IF SYS_CONTEXT('USERENV', 'CURRENT_USER') IN ('SYS', 'SYSTEM')
+     OR SYS_CONTEXT('USERENV', 'CON_NAME') = 'CDB$ROOT' THEN
+    RAISE_APPLICATION_ERROR(-20999,
+      'Run this script as the application user in XEPDB1 (sqlplus appliance_app@localhost:1521/XEPDB1), not SYS/SYSTEM or CDB$ROOT.');
+  END IF;
+END;
+/
+
 -- 1. CATEGORIES
 MERGE INTO CATEGORIES t USING (
     SELECT 'Refrigerators' AS CATEGORY_NAME, 'Single and double door refrigerators' AS DESCRIPTION FROM DUAL

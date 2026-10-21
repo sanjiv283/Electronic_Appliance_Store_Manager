@@ -31,25 +31,25 @@ Live tests: set RUN_ORACLE_TESTS=1 + TEST_DB_* (README section 9). Reports: pyte
 ## Completed phases (1-7)
 Audit (repo was empty) -> DB scripts -> backend/services -> frontend -> tests -> docs + DOCX/PDF -> final audit.
 
-## Actual test results (sandbox: Linux, Python 3.13, NO Oracle)
-- pytest: 76 PASSED (unit/route, fake DB), 16 BLOCKED (live Oracle integration), 0 FAILED (re-run on fix/theme-polish).
-- compileall PASSED; node --check app.js PASSED; sqlglot Oracle-dialect parse of 16 queries + 7 seed MERGEs PASSED (syntax only).
-- Flask smoke: /health 503 + honest message without Oracle; POST without CSRF 400.
-- Mutation sanity: removing lock-order sort / adding mid-sale commit made tests fail.
-
-## Known blockers
-No Oracle in sandbox: schema.sql, seed.sql, queries.sql, advanced_features.sql (PL/SQL) and all INT tests are unexecuted. Student must run README sections 5-9 locally.
+## Test results (verified)
+- Offline (sandbox, Python 3.13, fake DB): 141 passed, 19 skipped (live).
+- Live on the student's Oracle 21c XE (separate `appliance_test` schema, 2026-10-22): 19/19 integration tests passed; all 16 queries ran on `appliance_app` without error. First live run was 18/19 - the failure was a test bug (bind named like a helper arg), fixed in PR #6.
+- Live-run results in docs/test_results*.xml are transcribed from the student's console output (stated in the reports).
+- Not verified: recorded browser walkthrough of every role, HTTPS deployment, throttle across processes.
 
 ## Theme (cyberpunk)
 `static/css/style.css`, `static/js/theme-init.js` (applies saved theme pre-paint, try/catch), `static/js/app.js`, `templates/base.html` (sidebar + toggle). CSP is `default-src 'self'` -> NO inline `style=`/`<script>` in templates.
 
+## Review 3 (merged into main)
+Auth: `database/auth.sql` (USERS, 8th table, run after schema/advanced/seed), `services/users.py` (scrypt hashes, no default accounts), `manage.py create-user | list-users | reset-password`, default-deny gate in `app.py` (`PUBLIC_ENDPOINTS`, `CASHIER_ENDPOINTS`), in-process login throttle, 8h sessions, status-only `/health`. Managers cannot be deleted in the UI. Employees CRUD, user accounts page. Deploy: `serve.py` (waitress), `docs/deployment.md`. Criteria map: `docs/Review_3_Notes.md`.
+When adding a route: decide manager-only (default) or add to CASHIER_ENDPOINTS; test_auth enumerates all routes. Ids from Oracle are Decimal - cast to int before comparing/storing in the session.
+SQL scripts refuse to run as SYS/SYSTEM or in CDB$ROOT (ORA-20999); `setup_user.sql` uses SET VERIFY OFF.
+
 ## Deliverables (docs/)
-`Review_2_Report.md` (source of truth) -> `python docs/build_reports.py` -> `.docx` + `.pdf`; `python docs/build_presentation.py` -> `Review_2_Presentation.pptx` (12 slides, test numbers read from docs/test_results.xml); `python docs/make_diagrams.py` -> docs/images/er_diagram.png, architecture.png. UI screenshots in docs/images are the REAL templates with stubbed sample data (no Oracle) except ui_db_unavailable.png.
-Regenerate order: pytest --junitxml=docs/test_results.xml -> make_diagrams -> build_reports -> build_presentation.
+Review 2: `Review_2_Report.md` (source) -> `python docs/build_reports.py` -> .docx/.pdf; `python docs/build_presentation.py` -> .pptx. Review 3: `Review_3_Report.md` -> `python docs/build_review3.py`; `python docs/build_presentation_r3.py`. Matrix/deck numbers come from `docs/test_results.xml` (Review 2, gitignored) and `docs/test_results_r3.xml`. `python docs/make_diagrams.py` -> er_diagram.png, architecture.png. UI screenshots are real templates with stubbed data except ui_db_unavailable.png.
 
-## Review 3 (branch feature/review-3)
-Auth: `database/auth.sql` (USERS, 8th table, run after schema.sql), `services/users.py` (scrypt hashes, no default accounts), `manage.py create-user`, default-deny gate in `app.py` (`PUBLIC_ENDPOINTS`, `CASHIER_ENDPOINTS`), login throttle (in-process), 8h sessions. Sale employee = signed-in user. Employees CRUD (`services/employees.py`), user accounts page. Deploy: `serve.py` (waitress), `docs/deployment.md`. Criteria map: `docs/Review_3_Notes.md`.
-Tests: 126 passed offline, 19 BLOCKED (live Oracle incl. 3 new auth/employee tests). When adding a route: decide manager-only (default) or add to CASHIER_ENDPOINTS; test_auth enumerates all routes.
+## Git workflow
+Never push directly to `main`; branch + PR. PR #1 (fix/theme-polish) merged into main on the student's instruction. No force-push or history rewrite.
 
-## Current state / remaining
-`main` has the full project + cyberpunk theme; branch `fix/theme-polish` (PR #1) adds CSP/edit-button/user-invalid/stat-overflow fixes, the PDF/PPTX deliverables and screenshots (PR into main; never push directly to main). Remaining: run live Oracle steps (README 5-9), then regenerate the matrix/report/deck. Optional: remove trigger bypass, add auth, employee CRUD.
+## Remaining / optional
+Login-throttle redesign (bounded/shared store, ProxyFix), HTTPS deployment, remove trigger test bypass for production, rotate any DB password ever shared, drop `appliance_test` users when finished.

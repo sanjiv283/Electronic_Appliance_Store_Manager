@@ -338,6 +338,21 @@ def test_manage_cli_reports_missing_configuration_cleanly(monkeypatch, capsys):
     assert out.startswith("FAILED: Missing database configuration") and "Traceback" not in out
 
 
+def test_manage_reset_password_updates_hash_and_rejects_unknown_user(fake_db, monkeypatch, capsys):
+    """manage.py reset-password | unknown user -> exit 1; known user -> one UPDATE with a hash, never the password"""
+    import manage
+    monkeypatch.setattr(manage, "load_dotenv", lambda: None)
+    conn = fake_db([{"match": "SELECT USER_ID FROM USERS", "cols": ["USER_ID"], "rows": [(7,)]},
+                    {"match": "SELECT USERNAME FROM USERS", "cols": ["USERNAME"], "rows": [("sanjiv",)]}])
+    monkeypatch.setattr(manage.getpass, "getpass", lambda prompt="": "a-long-new-password")
+    assert manage.main(["manage.py", "reset-password", "Sanjiv"]) == 0
+    updates = [c for c in conn.executed if "UPDATE USERS SET PASSWORD_HASH" in c[0]]
+    assert len(updates) == 1 and updates[0][1]["h"] != "a-long-new-password" and updates[0][1]["id"] == 7
+    assert "a-long-new-password" not in capsys.readouterr().out
+    fake_db([{"match": "SELECT USER_ID FROM USERS", "cols": ["USER_ID"], "rows": []}])
+    assert manage.main(["manage.py", "reset-password", "nobody"]) == 1
+
+
 # ------------------------------------------------------------------ /health exposes status only
 SENSITIVE = ("APPLIANCE_APP", "xepdb1", "Connected as", "DB_HOST", "DB_PASSWORD", "ORA-", "secret-host", "listener")
 

@@ -12,6 +12,7 @@
 -- tests. The account gets NO DBA / SYSDBA / ANY-privileges.
 -- =====================================================================
 WHENEVER SQLERROR EXIT FAILURE
+SET VERIFY OFF   -- do not echo the password typed at the prompt
 ALTER SESSION SET CONTAINER = XEPDB1;
 
 ACCEPT app_user CHAR DEFAULT 'appliance_app' PROMPT 'Application user name [appliance_app]: '

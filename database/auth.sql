@@ -17,6 +17,16 @@ SET SERVEROUTPUT ON
 SET LINESIZE 160
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
+-- Safety guard: refuse to create application objects as SYS/SYSTEM or in CDB$ROOT.
+BEGIN
+  IF SYS_CONTEXT('USERENV', 'CURRENT_USER') IN ('SYS', 'SYSTEM')
+     OR SYS_CONTEXT('USERENV', 'CON_NAME') = 'CDB$ROOT' THEN
+    RAISE_APPLICATION_ERROR(-20999,
+      'Run this script as the application user in XEPDB1 (sqlplus appliance_app@localhost:1521/XEPDB1), not SYS/SYSTEM or CDB$ROOT.');
+  END IF;
+END;
+/
+
 DECLARE
   PROCEDURE run_ddl(p_label IN VARCHAR2, p_sql IN VARCHAR2) IS
   BEGIN
