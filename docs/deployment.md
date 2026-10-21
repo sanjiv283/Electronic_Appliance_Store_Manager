@@ -25,7 +25,7 @@ Target: a Windows machine in the store (or a lab PC) with Oracle Database 21c XE
 - Keep Oracle (port 1521) reachable only from the application server.
 
 ## 4. Operations
-- Health: `GET /health` -> 200 `{"database":"ok"}` or 503 (monitor this URL).
+- Health: `GET /health` -> 200 `{"app":"ok","database":"ok"}` or 503 `{"database":"unavailable"}` (monitor this URL). The response is status-only; the failure reason is written to the server log, and `python -m services.database` prints full diagnostics on the server.
 - Logs: application errors go to the console/stderr of `serve.py` (no passwords or SQL are shown to users).
 - Backups: use Oracle Data Pump (`expdp`) or RMAN on the `XEPDB1` schema regularly; test a restore.
 - Accounts: managers manage users in the web UI; `python manage.py list-users` lists accounts. If every manager password is lost, create a new manager with `manage.py` (needs `.env` access on the server).
