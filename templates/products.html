@@ -3,6 +3,7 @@
 {% block title %}Products{% endblock %}
 {% block content %}
 <h1>Products / Appliances</h1>
+{% if allowed('products_create') %}
 <section class="card">
   <h2>{{ 'Edit product' if edit else 'Add product' }}</h2>
   <form method="post" action="{{ url_for('products_update', product_id=edit.product_id) if edit else url_for('products_create') }}" class="grid-form">
@@ -26,6 +27,7 @@
       {% if edit %}<a class="btn btn-secondary" href="{{ url_for('products_page') }}">Cancel</a>{% endif %}</div>
   </form>
 </section>
+{% endif %}
 <section class="card">
   <form method="get" class="search">
     <label class="sr-only" for="q">Search</label><input id="q" name="q" value="{{ q }}" placeholder="Name, brand or model">
@@ -38,17 +40,17 @@
   </form>
   {% if data.rows %}
   <div class="table-wrap"><table>
-    <thead><tr><th>Product</th><th>Model</th><th>Category</th><th>Supplier</th><th class="num">Price</th><th class="num">Stock</th><th>Restock</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Product</th><th>Model</th><th>Category</th><th>Supplier</th><th class="num">Price</th><th class="num">Stock</th>{% if allowed('products_create') %}<th>Restock</th><th>Actions</th>{% endif %}</tr></thead>
     <tbody>{% for p in data.rows %}
       <tr><td>{{ p.product_name }}<br><small class="muted">{{ p.brand }}</small></td><td>{{ p.model_no }}</td>
           <td>{{ p.category_name }}</td><td>{{ p.supplier_name }}</td><td class="num">{{ p.unit_price|money }}</td>
           <td class="num">{{ p.stock_qty }}{% if p.stock_qty <= p.reorder_level %} <span class="badge badge-warn">low</span>{% endif %}</td>
-          <td><form method="post" action="{{ url_for('products_restock', product_id=p.product_id) }}" class="inline">
+          {% if allowed('products_create') %}<td><form method="post" action="{{ url_for('products_restock', product_id=p.product_id) }}" class="inline">
                 {{ csrf() }}<label class="sr-only" for="rs{{ p.product_id }}">Quantity to add</label>
                 <input id="rs{{ p.product_id }}" class="qty" type="number" name="quantity" min="1" max="1000000" step="1" required placeholder="qty">
                 <button class="btn btn-sm" type="submit">Add</button></form></td>
           <td class="row-actions"><a class="btn btn-secondary btn-sm" href="{{ url_for('products_page', edit=p.product_id) }}">Edit</a>
-            {{ delete_form(url_for('products_delete', product_id=p.product_id), 'product ' ~ p.product_name) }}</td></tr>{% endfor %}</tbody>
+            {{ delete_form(url_for('products_delete', product_id=p.product_id), 'product ' ~ p.product_name) }}</td>{% endif %}</tr>{% endfor %}</tbody>
   </table></div>
   {% else %}<p class="empty">No products match.</p>{% endif %}
   {{ pager(data, 'products_page', q=q, category_id=category_id, low_stock=1 if low_stock else None) }}

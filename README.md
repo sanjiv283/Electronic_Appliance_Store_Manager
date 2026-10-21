@@ -6,6 +6,8 @@ DBMS Review 2 project by **Sanjiv Shine Fernandas** — Flask + Oracle Database 
 
 ## 1. Features
 
+- **Review 3:** login with two roles (Manager, Cashier), employee management, user-account management, deployable with `waitress` (see §8a and `docs/deployment.md`).
+
 - Seven normalized tables: `CATEGORIES, SUPPLIERS, PRODUCTS, CUSTOMERS, EMPLOYEES, SALES, SALE_ITEMS` with PK/FK/UNIQUE/NOT NULL/CHECK constraints and indexes.
 - CRUD for products, categories, suppliers, customers (search, filter, pagination, delete confirmation).
 - **Atomic sales**: row locks (`SELECT … FOR UPDATE WAIT`), stock re-check, sale + items + stock deduction in one transaction, rollback on any error; prices always read from the database.
@@ -95,6 +97,7 @@ python -m services.database
 sqlplus appliance_app@localhost:1521/XEPDB1 @database\schema.sql
 sqlplus appliance_app@localhost:1521/XEPDB1 @database\advanced_features.sql
 sqlplus appliance_app@localhost:1521/XEPDB1 @database\seed.sql
+sqlplus appliance_app@localhost:1521/XEPDB1 @database\auth.sql           # Review 3: USERS table (run after schema.sql)
 sqlplus appliance_app@localhost:1521/XEPDB1 @database\queries.sql     # optional: runs the 16 demo queries
 ```
 
@@ -102,14 +105,37 @@ sqlplus appliance_app@localhost:1521/XEPDB1 @database\queries.sql     # optional
 - `seed.sql` first-run row counts: 6 categories, 4 suppliers, 14 products, 8 customers, 4 employees, 8 sales, 15 sale items.
 - There is intentionally **no destructive reset script**. To start over, drop the objects yourself in your own schema (`DROP TABLE SALE_ITEMS; …`) or recreate the user.
 
+## 8a. Login and roles (Review 3)
+
+The app now requires sign-in. There are **no default accounts or passwords**. After loading `auth.sql` (§7), create the first manager from the project folder (Command Prompt, virtual environment active). The password is typed at a hidden prompt and stored only as a hash:
+
+```bat
+python manage.py create-user meera MANAGER meera.nair@applstore-demo.example.com
+python manage.py list-users
+```
+
+The e-mail must belong to an existing employee (the seed has `Meera Nair`, Store Manager). Then sign in at <http://127.0.0.1:5000/login>. Managers create further accounts under **User accounts** and employees under **Employees**.
+
+| Area | Manager | Cashier |
+|---|---|---|
+| New sale, sales history, sale detail | yes | yes (sold-by is always the signed-in employee) |
+| Products | full CRUD + restock | view only |
+| Customers | full CRUD | list, add, edit (no delete) |
+| Dashboard, reports | yes | no (HTTP 403) |
+| Categories, suppliers | full CRUD | no |
+| Employees, user accounts | full CRUD | no |
+| Change own password | yes | yes |
+
+Rules: every page except `/login` and `/health` requires sign-in (default deny); 5 failed sign-ins for a user within 5 minutes are blocked for a while (HTTP 429); sessions last 8 hours; sign-out is a POST; passwords need at least 10 characters; a manager cannot delete their own account or the last manager.
+
 ## 8. Run the application
 
 ```powershell
 python app.py
 ```
-Open <http://127.0.0.1:5000>. Health endpoint: <http://127.0.0.1:5000/health> (503 + `database: unavailable` when Oracle cannot be reached — it only says `ok` after a real round trip).
+Open <http://127.0.0.1:5000> (redirects to the sign-in page). Health endpoint: <http://127.0.0.1:5000/health> (503 + `database: unavailable` when Oracle cannot be reached — it only says `ok` after a real round trip).
 
-Set `APP_ENV=production` for secure cookies and no debug mode; `FLASK_DEBUG=1` works only in development. Use a real WSGI server (e.g. `waitress`) and HTTPS for anything beyond local demonstration.
+Production-style run (waitress, no debug): `python serve.py` -> <http://127.0.0.1:8000>. Set `APP_ENV=production` only when served over HTTPS (it turns on secure-only cookies, so sign-in would not work over plain http). Full guide: `docs/deployment.md`.
 
 ## 9. Tests
 
@@ -147,6 +173,9 @@ Follow `docs/demo_guide.md` (10-minute script with SQL to paste).
 | "Missing database configuration: …" | `.env` missing or still contains `<set-locally>` placeholders. |
 | "Security token missing or invalid" (400) | Session expired or cookies blocked → reload the page. |
 | `Activate.ps1 cannot be loaded` | `Set-ExecutionPolicy -Scope Process Bypass`. |
+| `ORA-00942` on `USERS` / sign-in fails with a database error | `auth.sql` not loaded (§7). |
+| Cannot sign in; no accounts exist | Create the first manager with `python manage.py create-user` (§8a). |
+| Sign-in loops back to the login page with `APP_ENV=production` over http | Secure cookies need HTTPS; use `APP_ENV=development` for a local http demo. |
 | Port 5000 in use | Stop the other process or edit the port at the bottom of `app.py`. |
 | `ORA-30006` resource busy during a sale | Another session holds the product row lock; retry. |
 
@@ -156,7 +185,7 @@ Never commit `.env`; run `git status` before each commit. The app uses only `app
 
 ## 13. Known limitations
 
-- **No login/roles**: anyone who can reach the server can use all functions. Run on localhost only.
+- Login/roles are basic: two fixed roles, no self-registration, no password-reset e-mail (a manager resets passwords), no multi-factor sign-in. Role and account changes take effect at the next sign-in (sessions last 8 hours). The login throttle is in-process (single server process).
 - Single-currency (₹) display; no returns/refunds, no tax or discount model; employees are seed-only (no CRUD screen).
 - `TRG_SALES_PROTECT_HISTORY` contains a documented `CLIENT_INFO = 'ITEST_CLEANUP'` bypass used only by integration tests in a test schema — remove it for a production-style deployment.
 - Header total vs. line totals consistency is enforced by the service (and reported by the view), not by a database constraint.

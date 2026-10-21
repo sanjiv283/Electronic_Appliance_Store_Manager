@@ -15,7 +15,10 @@ def client(monkeypatch):
     # /categories is used only to obtain a CSRF token, so give it harmless data
     monkeypatch.setattr(categories, "list_all", lambda q=None: [])
     application = app_module.create_app({"SECRET_KEY": "test-key-not-secret", "TESTING": True})
-    return application.test_client()
+    c = application.test_client()
+    with c.session_transaction() as sess:       # these tests exercise routes as a signed-in manager
+        sess["user"] = {"id": 1, "username": "meera", "role": "MANAGER", "employee_id": 9, "name": "Meera Nair"}
+    return c
 
 
 def token(client):
@@ -119,15 +122,15 @@ def test_insufficient_stock_returns_409(client, monkeypatch):
 
 
 def test_sale_post_ignores_client_supplied_price_and_total(client, monkeypatch):
-    """Forged price/total fields in the sale POST | never forwarded to create_sale"""
+    """Forged price/total/employee fields in the sale POST | price and total ignored; employee id comes from the login session"""
     captured = {}
     monkeypatch.setattr(sales, "create_sale", lambda c, e, p, items: captured.update(args=(c, e, p, items))
                         or {"sale_id": 3, "invoice_no": "INV-X", "total": Decimal("1.00")})
     t = token(client)
-    resp = client.post("/sales/new", data={"csrf_token": t, "customer_id": "1", "employee_id": "2",
+    resp = client.post("/sales/new", data={"csrf_token": t, "customer_id": "1", "employee_id": "999",
                                            "payment_method": "UPI", "product_id": ["7", "7"], "quantity": ["1", "2"],
                                            "unit_price": "0.01", "total_amount": "0.01"})
-    assert resp.status_code == 303 and captured["args"] == ("1", "2", "UPI", [(7, 3)])
+    assert resp.status_code == 303 and captured["args"] == ("1", 9, "UPI", [(7, 3)])
 
 
 def test_empty_sale_rejected_400(client):
@@ -186,7 +189,6 @@ def test_every_listing_page_renders(client, monkeypatch):
     monkeypatch.setattr(products, "list_page", lambda *a: page([{"product_id": 1, "product_name": "P", "brand": "B", "model_no": "M", "category_id": 1, "category_name": "C", "supplier_id": 1, "supplier_name": "S", "unit_price": Decimal("5"), "stock_qty": 1, "reorder_level": 2, "warranty_months": 12}]))
     monkeypatch.setattr(customers, "list_page", lambda *a: page([{"customer_id": 1, "full_name": "N", "email": "e@x.com", "phone": "1234567", "address": None}]))
     monkeypatch.setattr(customers, "list_all", lambda: [{"customer_id": 1, "full_name": "N"}])
-    monkeypatch.setattr(employees, "list_all", lambda: [{"employee_id": 1, "full_name": "E", "job_title": "J"}])
     monkeypatch.setattr(products, "list_for_sale", lambda: [{"product_id": 1, "product_name": "P", "model_no": "M", "unit_price": Decimal("5"), "stock_qty": 3}])
     row = {"sale_id": 1, "invoice_no": "INV-1", "sale_date": when, "payment_method": "BANK_TRANSFER", "customer_name": "N", "employee_name": "E", "line_count": 1, "unit_count": 1, "total_amount": Decimal("5")}
     monkeypatch.setattr(sales, "list_page", lambda *a: page([row]))
