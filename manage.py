@@ -12,11 +12,12 @@ import sys
 
 from dotenv import load_dotenv
 
+from config import ConfigError
 from services import database, users
 from services.errors import AppError
 
 
-def main(argv):
+def _run(argv):
     load_dotenv()
     if len(argv) >= 2 and argv[1] == "list-users":
         for u in users.list_all():
@@ -38,9 +39,13 @@ def main(argv):
     return 2
 
 
-if __name__ == "__main__":
+def main(argv):
     try:
-        sys.exit(main(sys.argv))
-    except AppError as exc:
+        return _run(argv)
+    except (AppError, ConfigError) as exc:      # e.g. .env missing: a clear message, not a traceback
         print(f"FAILED: {exc}")
-        sys.exit(1)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

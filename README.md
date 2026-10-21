@@ -133,7 +133,7 @@ Rules: every page except `/login` and `/health` requires sign-in (default deny);
 ```powershell
 python app.py
 ```
-Open <http://127.0.0.1:5000> (redirects to the sign-in page). Health endpoint: <http://127.0.0.1:5000/health> (503 + `database: unavailable` when Oracle cannot be reached — it only says `ok` after a real round trip).
+Open <http://127.0.0.1:5000> (redirects to the sign-in page). Health endpoint: <http://127.0.0.1:5000/health> (status only: 503 + `database: unavailable` when Oracle cannot be reached, `ok` only after a real round trip; the reason is in the server log, and `python -m services.database` prints details locally).
 
 Production-style run (waitress, no debug): `python serve.py` -> <http://127.0.0.1:8000>. Set `APP_ENV=production` only when served over HTTPS (it turns on secure-only cookies, so sign-in would not work over plain http). Full guide: `docs/deployment.md`.
 
@@ -185,7 +185,7 @@ Never commit `.env`; run `git status` before each commit. The app uses only `app
 
 ## 13. Known limitations
 
-- Login/roles are basic: two fixed roles, no self-registration, no password-reset e-mail (a manager resets passwords), no multi-factor sign-in. Role and account changes take effect at the next sign-in (sessions last 8 hours). The login throttle is in-process (single server process).
+- Login/roles are basic: two fixed roles, no self-registration, no password-reset e-mail (a manager resets passwords), no multi-factor sign-in. Role and account changes take effect at the next sign-in (sessions last 8 hours). The login throttle is in-process (single server process, unbounded memory, not proxy-aware); see `docs/Review_3_Notes.md` for the deferred follow-up.
 - Single-currency (₹) display; no returns/refunds, no tax or discount model; employees are seed-only (no CRUD screen).
 - `TRG_SALES_PROTECT_HISTORY` contains a documented `CLIENT_INFO = 'ITEST_CLEANUP'` bypass used only by integration tests in a test schema — remove it for a production-style deployment.
 - Header total vs. line totals consistency is enforced by the service (and reported by the view), not by a database constraint.

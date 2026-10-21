@@ -29,7 +29,10 @@ def is_allowed(role, endpoint):
 
 def safe_next(target, fallback):
     """Only same-site relative paths are accepted (prevents open redirects)."""
-    if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
+    # Control characters are rejected too: "/<TAB>/evil.example" would otherwise be normalised
+    # to "//evil.example" (an external site) and a newline would crash the redirect.
+    if (target and target.startswith("/") and not target.startswith("//")
+            and not any(ord(ch) < 32 or ord(ch) == 127 or ch == "\\" for ch in target)):
         return target
     return fallback
 
@@ -167,7 +170,10 @@ def create_app(test_config=None):
     @app.get("/health")
     def health():
         ok, message = database.health_check()
-        return jsonify(app="ok", database="ok" if ok else "unavailable", detail=message), (200 if ok else 503)
+        if not ok:
+            log.warning("Health check failed: %s", message)     # detail stays in the server log only
+        # Public endpoint: status only - no database user, service name, hostnames or error text.
+        return jsonify(app="ok", database="ok" if ok else "unavailable"), (200 if ok else 503)
 
     # ---- dashboard --------------------------------------------------------
     @app.get("/")

@@ -163,7 +163,9 @@ def test_login_is_throttled_after_repeated_failures(anon, monkeypatch):
 
 
 @pytest.mark.parametrize("target,expected", [("//evil.example/x", "/"), ("https://evil.example", "/"),
-                                              ("/\\evil", "/"), ("/products", "/products")])
+                                              ("/\\evil", "/"), ("/products", "/products"),
+                                              ("/\t/evil.example", "/"), ("/\n/evil.example", "/"),
+                                              ("/\r/evil.example", "/"), ("/\x7f/evil.example", "/")])
 def test_login_next_cannot_redirect_off_site(anon, monkeypatch, target, expected):
     """Login with a next= parameter | only same-site relative paths are followed (no open redirect)"""
     monkeypatch.setattr(users, "authenticate", lambda u, p: MANAGER)
@@ -322,3 +324,57 @@ def test_users_and_employee_pages_render_for_manager(application, monkeypatch):
     html = c.get("/users").get_data(as_text=True)
     assert "meera" in html and "never" in html and 'type="password"' in html
     assert html.count("/delete") == 1          # no delete button for your own account
+
+
+def test_manage_cli_reports_missing_configuration_cleanly(monkeypatch, capsys):
+    """manage.py list-users with no database configuration | prints 'FAILED: Missing database configuration...' and returns 1 (no traceback)"""
+    import manage
+    monkeypatch.setattr(manage, "load_dotenv", lambda: None)
+    for name in ("DB_HOST", "DB_PORT", "DB_SERVICE_NAME", "DB_USER", "DB_PASSWORD"):
+        monkeypatch.delenv(name, raising=False)
+    assert manage.main(["manage.py", "list-users"]) == 1
+    out = capsys.readouterr().out
+    assert out.startswith("FAILED: Missing database configuration") and "Traceback" not in out
+
+
+# ------------------------------------------------------------------ /health exposes status only
+SENSITIVE = ("APPLIANCE_APP", "xepdb1", "Connected as", "DB_HOST", "DB_PASSWORD", "ORA-", "secret-host", "listener")
+
+
+def test_health_ok_returns_status_only_to_anonymous(anon, monkeypatch):
+    """GET /health (not signed in) when the database answers | HTTP 200, body is exactly {app, database}; no user/service/connection details"""
+    from services import database
+    monkeypatch.setattr(database, "health_check", lambda: (True, "Connected as APPLIANCE_APP to service xepdb1"))
+    resp = anon.get("/health")
+    assert resp.status_code == 200 and resp.get_json() == {"app": "ok", "database": "ok"}
+    assert not any(word.lower() in resp.get_data(as_text=True).lower() for word in SENSITIVE)
+
+
+def test_health_failure_hides_details_but_logs_them(anon, monkeypatch, caplog):
+    """GET /health when the database is down | HTTP 503 with {app, database: unavailable} only; the reason is written to the server log"""
+    import logging
+    from services import database
+    reason = "Missing database configuration: DB_HOST, DB_PASSWORD (ORA-12541 no listener at secret-host)"
+    monkeypatch.setattr(database, "health_check", lambda: (False, reason))
+    with caplog.at_level(logging.WARNING, logger="appliance_store"):
+        resp = anon.get("/health")
+    assert resp.status_code == 503 and resp.get_json() == {"app": "ok", "database": "unavailable"}
+    assert not any(word.lower() in resp.get_data(as_text=True).lower() for word in SENSITIVE)
+    assert reason in caplog.text
+
+
+def test_health_with_real_missing_configuration_leaks_no_variable_names(anon, monkeypatch):
+    """GET /health with no DB_* settings (real health_check, nothing stubbed) | 503 and the body does not name the missing variables"""
+    for name in ("DB_HOST", "DB_PORT", "DB_SERVICE_NAME", "DB_USER", "DB_PASSWORD"):
+        monkeypatch.delenv(name, raising=False)
+    resp = anon.get("/health")
+    assert resp.status_code == 503 and set(resp.get_json()) == {"app", "database"}
+    assert "DB_" not in resp.get_data(as_text=True)
+
+
+def test_health_is_public_and_identical_for_signed_in_users(application, anon, monkeypatch):
+    """GET /health anonymous vs signed-in manager | no login redirect, and signed-in users do not get extra database details either"""
+    from services import database
+    monkeypatch.setattr(database, "health_check", lambda: (True, "Connected as APPLIANCE_APP to service xepdb1"))
+    assert anon.get("/health").status_code == 200
+    assert signed_in(application, MANAGER).get("/health").get_json() == {"app": "ok", "database": "ok"}
