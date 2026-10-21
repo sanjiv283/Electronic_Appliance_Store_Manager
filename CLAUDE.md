@@ -35,13 +35,13 @@ Audit (repo was empty) -> DB scripts -> backend/services -> frontend -> tests ->
 - Offline (sandbox, Python 3.13, fake DB): 141 passed, 19 skipped (live).
 - Live on the student's Oracle 21c XE (separate `appliance_test` schema, 2026-10-22): 19/19 integration tests passed; all 16 queries ran on `appliance_app` without error. First live run was 18/19 - the failure was a test bug (bind named like a helper arg), fixed in PR #6.
 - Live-run results in docs/test_results*.xml are transcribed from the student's console output (stated in the reports).
-- Not verified: recorded browser walkthrough of every role, HTTPS deployment, throttle across processes.
+- Not verified: recorded browser walkthrough of every role, HTTPS deployment, throttle across several processes.
 
 ## Theme (cyberpunk)
 `static/css/style.css`, `static/js/theme-init.js` (applies saved theme pre-paint, try/catch), `static/js/app.js`, `templates/base.html` (sidebar + toggle). CSP is `default-src 'self'` -> NO inline `style=`/`<script>` in templates.
 
 ## Review 3 (merged into main)
-Auth: `database/auth.sql` (USERS, 8th table, run after schema/advanced/seed), `services/users.py` (scrypt hashes, no default accounts), `manage.py create-user | list-users | reset-password`, default-deny gate in `app.py` (`PUBLIC_ENDPOINTS`, `CASHIER_ENDPOINTS`), in-process login throttle, 8h sessions, status-only `/health`. Managers cannot be deleted in the UI. Employees CRUD, user accounts page. Deploy: `serve.py` (waitress), `docs/deployment.md`. Criteria map: `docs/Review_3_Notes.md`.
+Auth: `database/auth.sql` (USERS, 8th table, run after schema/advanced/seed), `services/users.py` (scrypt hashes, no default accounts), `manage.py create-user | list-users | reset-password`, default-deny gate in `app.py` (`PUBLIC_ENDPOINTS`, `CASHIER_ENDPOINTS`), bounded in-process login throttle (`services/throttle.py`, `TRUSTED_PROXIES` env for proxies), 8h sessions, status-only `/health`. Managers cannot be deleted in the UI. Employees CRUD, user accounts page. Deploy: `serve.py` (waitress), `docs/deployment.md`. Criteria map: `docs/Review_3_Notes.md`.
 When adding a route: decide manager-only (default) or add to CASHIER_ENDPOINTS; test_auth enumerates all routes. Ids from Oracle are Decimal - cast to int before comparing/storing in the session.
 SQL scripts refuse to run as SYS/SYSTEM or in CDB$ROOT (ORA-20999); `setup_user.sql` uses SET VERIFY OFF.
 
@@ -52,4 +52,4 @@ Review 2: `Review_2_Report.md` (source) -> `python docs/build_reports.py` -> .do
 Never push directly to `main`; branch + PR. PR #1 (fix/theme-polish) merged into main on the student's instruction. No force-push or history rewrite.
 
 ## Remaining / optional
-Login-throttle redesign (bounded/shared store, ProxyFix), HTTPS deployment, remove trigger test bypass for production, rotate any DB password ever shared, drop `appliance_test` users when finished.
+Throttle shared store only if several workers are used, HTTPS deployment, remove trigger test bypass for production, rotate any DB password ever shared, drop `appliance_test` users when finished.

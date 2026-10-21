@@ -154,7 +154,7 @@ for i, (label, n, col) in enumerate([("PASSED", tot["PASSED"], "green"), ("FAILE
     text(s, x, 1.6, 3.9, 0.9, str(n), 50, col, True, align=PP_ALIGN.CENTER)
     text(s, x, 2.45, 3.9, 0.4, label, 14, "text", True, align=PP_ALIGN.CENTER)
 nm = {"test_config": "Configuration", "test_services": "Validation, CRUD, sale transaction (fake DB)",
-      "test_routes": "Routes, CSRF, errors, health", "test_auth": "Sign-in, roles, throttle, redirects, hashing",
+      "test_routes": "Routes, CSRF, errors, health", "test_auth": "Sign-in, roles, redirects, hashing", "test_throttle": "Login throttle, proxy header handling",
       "test_oracle_integration": "Live Oracle (student run, 2026-10-22)"}
 rows = [("Suite", "Scope", "Result")] + [(m + ".py", nm[m], " · ".join(f"{v} {k}" for k, v in per[m].items())) for m in nm]
 table(s, rows, 0.6, 3.3, 12.15, 2.5, (3.4, 5.6, 3.15), 13)
@@ -171,20 +171,20 @@ bullets(s, 0.6, 1.4, 6.0, 5.4, [
     "Backups with expdp / RMAN; password rotation steps",
     "docs/deployment.md has the full guide"], 16, gap=8)
 bullets(s, 6.8, 1.4, 6.0, 5.4, [
-    "Login throttle is in-process: memory grows, not proxy-aware, resets on restart",
+    "Login throttle is bounded and proxy-aware, but per process: resets on restart, not shared by workers",
     "No password-reset e-mail or MFA; managers reset passwords",
     "Role changes apply at next sign-in",
     "HTTPS deployment and a recorded browser walkthrough not yet done",
     "Trigger test-cleanup bypass should be removed for production"], 16, gap=8)
-notes(s, "Be upfront about the deferred throttle redesign and that HTTPS was not exercised.")
+notes(s, "The throttle redesign is covered by offline tests only; HTTPS was not exercised.")
 
 # 11 conclusion
 s = new_slide(11, "Conclusion")
 chk = [("DONE", "green", "Login, Manager/Cashier roles, default-deny gate, employee and account management"),
        ("DONE", "green", "Hardening fixes with regression tests; Decimal-id bug fixed"),
-       ("DONE", "green", f"{tot['PASSED']} tests PASSED (140 offline + 19 live on Oracle 21c XE); 16 queries ran live"),
+       ("DONE", "green", f"{tot['PASSED']} tests PASSED (155 offline + 19 live on Oracle 21c XE); 16 queries ran live"),
        ("DONE", "green", "README, deployment guide, demo guide, Review 2 and Review 3 reports"),
-       ("TO DO", "amber", "Throttle redesign, HTTPS deployment, recorded role walkthrough")]
+       ("TO DO", "amber", "HTTPS deployment, recorded role walkthrough, shared throttle store if several workers")]
 for i, (tag, col, msg) in enumerate(chk):
     y = 1.5 + i * 0.95
     box(s, 0.6, y, 12.15, 0.8, "panel", col, 0.1, 1.0)

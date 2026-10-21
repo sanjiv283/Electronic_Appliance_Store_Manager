@@ -2,7 +2,7 @@
 
 **Student:** Sanjiv Shine Fernandas · **Stack:** Flask, python-oracledb (Thin), Oracle Database 21c XE (`XEPDB1`), HTML/CSS/JavaScript, pytest
 
-> **Verification disclosure.** The code was written in an environment without Oracle. On 2026-10-22 the student ran the 19 live integration tests on a real Oracle Database 21c XE (separate test schema): **19 PASSED** (14.04 s), and executed all 16 queries of `queries.sql` without error. These live results were transcribed from the student's console output into the test matrix; the authoring environment did not produce them. The offline suite (140 tests) was run by the authoring environment. **Not verified:** a recorded browser walkthrough of every role scenario, HTTPS deployment, multi-process behaviour of the login throttle, load testing.
+> **Verification disclosure.** The code was written in an environment without Oracle. On 2026-10-22 the student ran the 19 live integration tests on a real Oracle Database 21c XE (separate test schema): **19 PASSED** (14.04 s), and executed all 16 queries of `queries.sql` without error. These live results were transcribed from the student's console output into the test matrix; the authoring environment did not produce them. The offline suite (155 tests) was run by the authoring environment; the throttle redesign (§5) was added after the live run and is covered by offline tests only (the live tests do not touch it). **Not verified:** a recorded browser walkthrough of every role scenario, HTTPS deployment, multi-process behaviour of the login throttle, load testing.
 
 # 1. Abstract
 
@@ -19,7 +19,7 @@ Review 2 delivered the Oracle schema, queries, PL/SQL objects and the backend. R
 | Database correctness and integrity | 8 tables, PK/FK/UNIQUE/CHECK, no-cascade FKs, protective trigger, atomic sale transaction | `schema.sql`, `auth.sql`; INT-02..06 | PASSED live |
 | Search, filtering, reports, dashboard | Search/filter/pagination; dashboard; five reports | `/products?q=`, `/reports` | Offline PASSED; the 16 queries ran live |
 | Error handling and basic security | Bind variables, CSRF on every POST, escaped output, CSP, safe error pages, hashed passwords, least-privilege DB user | `test_routes.py`, `test_auth.py` | Offline PASSED |
-| Testing and demonstration | pytest (unit, route, auth, live Oracle); `docs/demo_guide.md` | §12 | 140 offline + 19 live PASSED |
+| Testing and demonstration | pytest (unit, route, auth, live Oracle); `docs/demo_guide.md` | §12 | 155 offline + 19 live PASSED |
 | Project documentation | README, `docs/deployment.md`, demo guide, Review 2 report, this report | — | Delivered |
 
 # 3. Architecture
@@ -50,7 +50,7 @@ Run order: `schema.sql`, `advanced_features.sql`, `seed.sql`, `auth.sql`. `auth.
 - **No default accounts.** The first manager is created from the server with `python manage.py create-user USERNAME ROLE EMPLOYEE_EMAIL` (hidden password prompt). Passwords need at least 10 characters.
 - **Default deny.** A `before_request` gate requires sign-in for every endpoint except `login`, `health` and `static`. Endpoints a cashier may use are listed explicitly (`CASHIER_ENDPOINTS`); everything else is manager-only. A test enumerates every registered route.
 - **Sessions.** 8 hours, `HttpOnly`, `SameSite`; `Secure` when `APP_ENV=production` (HTTPS only). Sign-out is a POST.
-- **Throttle.** 5 failed sign-ins per (username, client address) within 5 minutes return HTTP 429. This is in-process only (see §11).
+- **Throttle** (`services/throttle.py`). Two sliding 5-minute limits: 5 failures per (username, client address) and 20 per client address across all usernames. Another address is never affected, so a user cannot be locked out from elsewhere. Memory is capped at 10,000 entries (expired, then oldest dropped); it is thread-safe. HTTP 429 carries `Retry-After` and the block is logged. Behind a reverse proxy, `TRUSTED_PROXIES=<n>` applies Werkzeug `ProxyFix` for exactly n proxies (default 0: `X-Forwarded-For` is ignored, so it cannot be spoofed).
 - **Open-redirect protection.** After sign-in `next=` accepts only same-site paths; control characters, backslashes and `//` are rejected.
 
 | | Manager | Cashier |
@@ -104,7 +104,7 @@ Screenshots below use the real templates rendered with sample data (no database)
 
 # 11. Known limitations
 
-- Login throttle: in-process dictionary, unbounded memory for many distinct usernames, not proxy-aware (uses the socket address), counters reset on restart and are per worker, and locking by username allows a targeted lockout. Recommended follow-up: bounded or Oracle-backed store, `ProxyFix` with an exact hop count, progressive delays.
+- Login throttle: state is per process, so it resets on restart and is not shared between several workers (an Oracle-backed store would be the next step); there is no progressive delay; and the address-wide limit can block everyone behind one shared (NAT) address for up to 5 minutes after 20 failures.
 - No self-registration, password-reset e-mail or multi-factor sign-in; a manager resets passwords.
 - Role and account changes apply at the next sign-in (sessions last 8 hours).
 - No connection pool; single-currency display; no returns, tax or discount model.
@@ -113,7 +113,7 @@ Screenshots below use the real templates rendered with sample data (no database)
 
 # 12. Testing
 
-Suites: `test_config`, `test_services` (fake connection), `test_routes` (Flask test client), `test_auth` (every route requires sign-in, role matrix, throttle, open redirect, hashing) and `test_oracle_integration` (live Oracle, separate test schema, tagged `ITEST-` rows removed afterwards). Status vocabulary — **PASSED**: executed and passed · **FAILED**: executed and failed · **NOT RUN**: intentionally skipped · **BLOCKED**: dependency unavailable.
+Suites: `test_config`, `test_services` (fake connection), `test_routes` (Flask test client), `test_auth` (every route requires sign-in, role matrix, open redirect, hashing), `test_throttle` (fake-clock throttle limits, bounded memory, proxy header handling) and `test_oracle_integration` (live Oracle, separate test schema, tagged `ITEST-` rows removed afterwards). Status vocabulary — **PASSED**: executed and passed · **FAILED**: executed and failed · **NOT RUN**: intentionally skipped · **BLOCKED**: dependency unavailable.
 
 On the first live run 18 of 19 tests passed; the one failure (`test_function_customer_total_spend`) was a mistake in the test itself (a bind variable named like a helper argument), not in the application or database. It was fixed and the whole suite then passed 19 of 19.
 
@@ -200,15 +200,24 @@ On the first live run 18 of 19 tests passed; the one failure (`test_function_cus
 | AUT-25 | Importing serve.py | does not start a server; waitress is installed | Executed; assertions held | **PASSED** | Flask test client, fake database |
 | AUT-26 | Manager opens Employees and User accounts | pages render with data and password inputs | Executed; assertions held | **PASSED** | Flask test client, fake database |
 | AUT-27 | manage.py list-users with no database configuration | prints 'FAILED: Missing database configuration...' and returns 1 (no traceback) | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-28 | GET /health (not signed in) when the database answers | HTTP 200, body is exactly {app, database}; no user/service/connection details | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-29 | GET /health when the database is down | HTTP 503 with {app, database: unavailable} only; the reason is written to the server log | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-30 | GET /health with no DB_* settings (real health_check, nothing stubbed) | 503 and the body does not name the missing variables | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-31 | GET /health anonymous vs signed-in manager | no login redirect, and signed-in users do not get extra database details either | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-32 | authenticate when Oracle returns Decimal ids | session user has int id/employee_id (survives the cookie round trip) | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-33 | users.delete with the acting id as text ('3', as read back from the session cookie) | ConflictError, no DELETE issued | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-34 | Sign in through the real authenticate() with Decimal ids, then open /users | own row shows 'you', the other manager shows 'protected'; no Delete button on either | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-35 | Two managers and one cashier listed | exactly one Delete button, and it belongs to the cashier | Executed; assertions held | **PASSED** | Flask test client, fake database |
-| AUT-36 | POST /users/<manager id>/delete as a manager | HTTP 409 and nothing deleted | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-28 | manage.py reset-password | unknown user -> exit 1; known user -> one UPDATE with a hash, never the password | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-29 | GET /health (not signed in) when the database answers | HTTP 200, body is exactly {app, database}; no user/service/connection details | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-30 | GET /health when the database is down | HTTP 503 with {app, database: unavailable} only; the reason is written to the server log | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-31 | GET /health with no DB_* settings (real health_check, nothing stubbed) | 503 and the body does not name the missing variables | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-32 | GET /health anonymous vs signed-in manager | no login redirect, and signed-in users do not get extra database details either | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-33 | authenticate when Oracle returns Decimal ids | session user has int id/employee_id (survives the cookie round trip) | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-34 | users.delete with the acting id as text ('3', as read back from the session cookie) | ConflictError, no DELETE issued | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-35 | Sign in through the real authenticate() with Decimal ids, then open /users | own row shows 'you', the other manager shows 'protected'; no Delete button on either | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-36 | Two managers and one cashier listed | exactly one Delete button, and it belongs to the cashier | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| AUT-37 | POST /users/<manager id>/delete as a manager | HTTP 409 and nothing deleted | Executed; assertions held | **PASSED** | Flask test client, fake database |
+| THR-01 | 5 failures for one user+address | blocked with the seconds until the oldest failure expires | Executed; assertions held | **PASSED** | Fake clock; Flask test client |
+| THR-02 | Lockout is per user+address | the same user from another address, and another user at the same address, still sign in | Executed; assertions held | **PASSED** | Fake clock; Flask test client |
+| THR-03 | 20 failures from one address across different usernames | the address is blocked for every username | Executed; assertions held | **PASSED** | Fake clock; Flask test client |
+| THR-04 | After the window passes, or after a successful sign-in | the user may try again | Executed; assertions held | **PASSED** | Fake clock; Flask test client |
+| THR-05 | Flood of random usernames | at most max_entries kept; entries older than the window are pruned | Executed; assertions held | **PASSED** | Fake clock; Flask test client |
+| THR-06 | 6th failed sign-in | HTTP 429 with a Retry-After header and the friendly message | Executed; assertions held | **PASSED** | Fake clock; Flask test client |
+| THR-07 | X-Forwarded-For with TRUSTED_PROXIES=0 | spoofed addresses do not dodge the limit; with 1 hop the real client address is used | Executed; assertions held | **PASSED** | Fake clock; Flask test client |
+| THR-08 | TRUSTED_PROXIES env value (7 parameter sets) | 0-5 accepted (default 0); anything else raises ConfigError | Executed; assertions held | **PASSED** | Fake clock; Flask test client |
 | INT-01 | Connect to XEPDB1 as the test application user | connected, user is not SYS/SYSTEM | Executed; assertions held | **PASSED** | Live Oracle 21c XE, separate test schema (student run 2026-10-22) |
 | INT-02 | USER_TABLES | all 7 required tables exist | Executed; assertions held | **PASSED** | Live Oracle 21c XE, separate test schema (student run 2026-10-22) |
 | INT-03 | USER_OBJECTS | view, procedure, function, trigger all VALID | Executed; assertions held | **PASSED** | Live Oracle 21c XE, separate test schema (student run 2026-10-22) |
@@ -229,11 +238,11 @@ On the first live run 18 of 19 tests passed; the one failure (`test_function_cus
 | INT-18 | Create user, sign in, wrong password, change password, delete | password stored hashed, authenticate works only with the right password | Executed; assertions held | **PASSED** | Live Oracle 21c XE, separate test schema (student run 2026-10-22) |
 | INT-19 | Create, update, delete an employee through the service | each step reflected in the database | Executed; assertions held | **PASSED** | Live Oracle 21c XE, separate test schema (student run 2026-10-22) |
 
-Totals by pytest case: PASSED 159
+Totals by pytest case: PASSED 174
 <!-- MATRIX:END -->
 
 **Live query run (2026-10-22, demo schema `appliance_app`):** all 16 queries executed without an `ORA-` error. Figures match the seed except where the demo database also contains one sale entered through the web application (`INV-001000`, ₹36,999), which is why, for example, Air Conditioners revenue shows ₹100,497.
 
 # 13. Conclusion
 
-Review 3 turns the database project into a complete, role-protected web application: a default-deny sign-in gate, Manager and Cashier roles, employee and account management, hardened error and health handling, a production-style launcher and a deployment guide. 140 offline tests and 19 live Oracle tests passed, and all 16 queries ran live. The main open items are the deferred throttle redesign, HTTPS deployment and a recorded end-to-end browser walkthrough.
+Review 3 turns the database project into a complete, role-protected web application: a default-deny sign-in gate, Manager and Cashier roles, employee and account management, hardened error and health handling, a production-style launcher and a deployment guide. 155 offline tests and 19 live Oracle tests passed, and all 16 queries ran live. The login throttle is bounded and proxy-aware. The main open items are HTTPS deployment and a recorded end-to-end browser walkthrough.

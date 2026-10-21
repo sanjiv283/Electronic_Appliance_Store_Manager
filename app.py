@@ -2,16 +2,17 @@
 import hmac
 import logging
 import secrets
-import time
 from datetime import timedelta
 from decimal import Decimal
 
 from dotenv import load_dotenv
 from flask import (Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for)
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
 from services import (categories, customers, database, employees, products, reports, sales, suppliers, users)
 from services.errors import AppError
+from services.throttle import LoginThrottle
 
 log = logging.getLogger("appliance_store")
 
@@ -20,7 +21,6 @@ PUBLIC_ENDPOINTS = {"login", "health", "static"}
 # Default deny: a CASHIER may call only these endpoints; MANAGER may call everything.
 CASHIER_ENDPOINTS = {"products_page", "customers_page", "customers_create", "customers_update",
                      "sales_new", "sales_create", "sales_page", "sale_detail", "logout", "account_password"}
-LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS = 5, 300
 
 
 def is_allowed(role, endpoint):
@@ -46,7 +46,9 @@ def create_app(test_config=None):
     else:
         app.config.update(test_config)
     app.config.setdefault("CSRF_ENABLED", True)
-    failures = {}   # ponytail: in-process login throttle; use a shared store if run with several workers
+    throttle = LoginThrottle()   # ponytail: in-process; a shared store is needed for several workers
+    if app.config.get("TRUSTED_PROXIES", 0) > 0:     # real client address from X-Forwarded-For, exact hop count only
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=app.config["TRUSTED_PROXIES"])
 
     def current_user():
         return session.get("user")
@@ -139,15 +141,17 @@ def create_app(test_config=None):
                 return redirect(landing(current_user()))
             return render_template("login.html", next=target)
         name = (request.form.get("username") or "").strip().lower()
-        key, now = (name, request.remote_addr), time.time()
-        recent = [t for t in failures.get(key, []) if now - t < LOGIN_WINDOW_SECONDS]
-        if len(recent) >= LOGIN_MAX_FAILURES:
-            abort(429, "Too many failed sign-in attempts. Wait a few minutes and try again.")
+        ip = request.remote_addr
+        wait = throttle.retry_after(name, ip)
+        if wait:
+            log.warning("Sign-in blocked for %.40r from %s for %ss", name, ip, wait)
+            body, status = show_error("Too many failed sign-in attempts. Wait a few minutes and try again.", 429)
+            return body, status, {"Retry-After": str(wait)}
         user = users.authenticate(name, request.form.get("password"))
         if not user:
-            failures[key] = recent + [now]
+            throttle.record_failure(name, ip)
             return render_template("login.html", next=target, error="Invalid username or password."), 401
-        failures.pop(key, None)
+        throttle.clear(name, ip)
         session.clear()                       # new session after login (prevents fixation)
         session["user"] = user
         session.permanent = True

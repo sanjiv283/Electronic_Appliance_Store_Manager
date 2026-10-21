@@ -52,6 +52,9 @@ def load_flask_config(env=None):
         raise ConfigError("Missing FLASK_SECRET_KEY. Generate one with: "
                           'python -c "import secrets; print(secrets.token_hex(32))" and put it in .env.')
     production = env.get("APP_ENV", "development").lower() == "production"
+    proxies = (env.get("TRUSTED_PROXIES") or "0").strip()
+    if not proxies.isdigit() or int(proxies) > 5:
+        raise ConfigError("TRUSTED_PROXIES must be the number of reverse proxies in front of the app (0-5).")
     return {
         "SECRET_KEY": env["FLASK_SECRET_KEY"],
         "SESSION_COOKIE_HTTPONLY": True,
@@ -59,4 +62,5 @@ def load_flask_config(env=None):
         "SESSION_COOKIE_SECURE": production,   # needs HTTPS; off for local http://127.0.0.1
         "DEBUG": (not production) and env.get("FLASK_DEBUG") == "1",
         "APP_ENV": "production" if production else "development",
+        "TRUSTED_PROXIES": int(proxies),   # 0 = ignore X-Forwarded-For (never trust it from the open internet)
     }
