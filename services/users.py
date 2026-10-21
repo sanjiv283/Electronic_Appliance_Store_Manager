@@ -32,8 +32,10 @@ def authenticate(username, password):
     if not row or not ok:
         return None
     db.execute("UPDATE USERS SET LAST_LOGIN = SYSTIMESTAMP WHERE USER_ID = :id", {"id": row["user_id"]})
-    return {"id": row["user_id"], "username": row["username"], "role": row["role"],
-            "employee_id": row["employee_id"], "name": row["full_name"]}
+    # Oracle returns NUMBER ids as Decimal, which the session cookie turns into text ("3"); keep plain ints
+    # so comparisons such as "is this my own account?" keep working.
+    return {"id": int(row["user_id"]), "username": row["username"], "role": row["role"],
+            "employee_id": int(row["employee_id"]), "name": row["full_name"]}
 
 
 def list_all():
@@ -81,7 +83,7 @@ def change_own_password(user_id, form):
 
 def delete(user_id, acting_user_id):
     uid = v.record_id(user_id, "User")
-    if uid == acting_user_id:
+    if uid == int(acting_user_id):
         raise ConflictError("You cannot delete your own account.")
     row = db.fetch_one("SELECT ROLE FROM USERS WHERE USER_ID = :id", {"id": uid})
     if not row:

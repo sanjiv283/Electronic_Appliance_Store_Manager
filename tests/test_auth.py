@@ -378,3 +378,37 @@ def test_health_is_public_and_identical_for_signed_in_users(application, anon, m
     monkeypatch.setattr(database, "health_check", lambda: (True, "Connected as APPLIANCE_APP to service xepdb1"))
     assert anon.get("/health").status_code == 200
     assert signed_in(application, MANAGER).get("/health").get_json() == {"app": "ok", "database": "ok"}
+
+
+# ------------------------------------------------------------------ Oracle returns NUMBER ids as Decimal
+def test_authenticate_returns_plain_int_ids_even_when_oracle_gives_decimal(fake_db):
+    """authenticate when Oracle returns Decimal ids | session user has int id/employee_id (survives the cookie round trip)"""
+    h = generate_password_hash("correct-horse-1")
+    fake_db([{"match": "FROM USERS u JOIN", "cols": COLS, "rows": [(Decimal("3"), "sanjiv", h, "MANAGER", Decimal("29"), "Sanjiv")]}])
+    user = users.authenticate("sanjiv", "correct-horse-1")
+    assert type(user["id"]) is int and type(user["employee_id"]) is int and user["id"] == 3
+
+
+def test_delete_blocks_own_account_when_session_id_is_text(fake_db):
+    """users.delete with the acting id as text ('3', as read back from the session cookie) | ConflictError, no DELETE issued"""
+    conn = fake_db([{"match": "SELECT ROLE FROM USERS", "cols": ["ROLE"], "rows": [("MANAGER",)]},
+                    {"match": "COUNT(*)", "cols": ["N"], "rows": [(2,)]}])
+    with pytest.raises(ConflictError, match="own account"):
+        users.delete(3, "3")
+    assert not [s for s in conn.sql_log() if s.startswith("DELETE")]
+
+
+def test_users_page_hides_delete_on_own_row_with_real_oracle_types(application, monkeypatch, fake_db):
+    """Sign in through the real authenticate() with Decimal ids, then open /users | own row shows 'you' with no Delete button; only the other manager can be deleted"""
+    h = generate_password_hash("correct-horse-1")
+    fake_db([{"match": "FROM USERS u JOIN", "cols": COLS, "rows": [(Decimal("3"), "sanjiv", h, "MANAGER", Decimal("29"), "Sanjiv")]},
+             {"match": "UPDATE USERS SET LAST_LOGIN"}])
+    c = application.test_client()
+    resp = c.post("/login", data={"username": "sanjiv", "password": "correct-horse-1", "csrf_token": csrf(c)})
+    assert resp.status_code == 303
+    monkeypatch.setattr(users, "list_all", lambda: [
+        {"user_id": Decimal("3"), "username": "sanjiv", "role": "MANAGER", "full_name": "Sanjiv", "job_title": "Admin", "last_login": None},
+        {"user_id": Decimal("4"), "username": "animesh", "role": "MANAGER", "full_name": "Animesh", "job_title": "Admin", "last_login": None}])
+    monkeypatch.setattr(employees, "list_without_user", lambda: [])
+    html = c.get("/users").get_data(as_text=True)
+    assert html.count("/delete") == 1 and "/users/4/delete" in html and "/users/3/delete" not in html
