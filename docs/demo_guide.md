@@ -6,6 +6,10 @@ Presenter: Sanjiv Shine Fernandas · Subject: DBMS · Review 2
 
 If Oracle is unreachable on the day, run only 📄 items and the unit tests; say clearly that live items were not demonstrated. Never claim a connection that `python -m services.database` did not report.
 
+**Current state of the project:** the live Oracle checks have been run (19/19 integration tests and all 16 queries passed on Oracle 21c XE on 2026-10-22). The application now also has a sign-in page (added after Review 2), so for this demo you sign in once with a manager account and then follow the Review 2 steps below. Do not show `.env` or type a password where it can be read.
+
+**10 minutes before:** Oracle services running (`Get-Service Oracle*`), `git checkout main` and `git pull`, nothing else on port 5000, a SQL*Plus window open as `appliance_app`, and `python -m services.database` printing `OK`.
+
 ## Time plan
 
 | Min | Section | Type |
@@ -26,7 +30,7 @@ If Oracle is unreachable on the day, run only 📄 items and the unit tests; say
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python -m services.database      # expect: OK: Connected as APPLIANCE_APP to service XEPDB1
-python app.py                    # open http://127.0.0.1:5000
+python app.py                    # open http://127.0.0.1:5000 and sign in with your manager account
 ```
 Say: configuration comes from `.env` (git-ignored); the app connects only as `appliance_app`.
 
@@ -61,13 +65,13 @@ Talking points: PK = unique identity of a row (identity column); FK = relationsh
 
 ```sql
 SELECT 'PRODUCTS' t, COUNT(*) FROM PRODUCTS UNION ALL SELECT 'SALES', COUNT(*) FROM SALES
-UNION ALL SELECT 'SALE_ITEMS', COUNT(*) FROM SALE_ITEMS;   -- 14 / 8 / 15 on a fresh seed
+UNION ALL SELECT 'SALE_ITEMS', COUNT(*) FROM SALE_ITEMS;   -- 14 / 8 / 15 on a fresh seed; your database may show more (e.g. 9 sales, 16 items) because of sales made in the app
 ```
-Fictional data only (example.com e-mails). `seed.sql` is re-runnable (MERGE).
+Fictional data only (example.com e-mails). `seed.sql` is re-runnable (MERGE): a second run reports 0 rows merged.
 
 ## 4. Joins, subqueries, aggregations (1:45) 🔌
 
-Run from `database/queries.sql` (16 numbered queries; the file is a 📄 artifact). Suggested four: **Q7** (5-table join), **Q10** (GROUP BY … HAVING), **Q12** (correlated subquery), **Q13** (NOT EXISTS). Expected highlights: Q13 returns `VV-TV32` and `AU-EK18` (never sold); Q10 returns Televisions, Air Conditioners and Washing Machines.
+Run from `database/queries.sql` (16 numbered queries; the file is a 📄 artifact). Suggested four: **Q7** (5-table join), **Q10** (GROUP BY … HAVING), **Q12** (correlated subquery), **Q13** (NOT EXISTS). Expected highlights: Q13 returns `VV-TV32` and `AU-EK18` (never sold); Q10 returns Televisions (139,996), Air Conditioners and Washing Machines (50,998). Air Conditioners shows 100,497 on a database that also holds the extra app sale INV-001000 (63,498 on a pure seed). For readable columns run `@database\queries.sql` from SQL*Plus (it sets widths).
 
 ## 5. PL/SQL objects (1:00) 🔌
 
@@ -85,7 +89,7 @@ Alternatively run `@database\advanced_features.sql`: its closing verification bl
 
 ## 6. Flask ↔ Oracle connectivity (0:45) 🔌
 
-Browser: `/health` → `{"database":"ok", …}`. Show `config.py` (env-only, rejects SYS/SYSTEM, placeholders count as missing) and `services/database.py` (bind variables, sanitized errors). Optional: stop the listener and reload `/health` → 503 with an honest message, no fake dashboard numbers.
+Browser: `/health` → `{"app":"ok","database":"ok"}` (status only; no database user or service name is exposed). Show `config.py` (env-only, rejects SYS/SYSTEM, placeholders count as missing) and `services/database.py` (bind variables, sanitized errors). Optional: stop the listener and reload `/health` → 503 with an honest message, no fake dashboard numbers.
 
 ## 7. CRUD (0:45) 🔌
 
@@ -94,8 +98,8 @@ Customers → add "Demo Student" → edit phone → delete (confirmation dialog)
 ## 8. Sale transaction (1:15) 🔌
 
 1. Products page: note stock of *KitchenPro Mixer Grinder* (25) and *CoolBreeze Window AC* (2).
-2. New Sale: customer + employee, add Mixer ×2 and Window AC ×1 → Record sale. Invoice page shows DB prices and total.
-3. Products page: stock now 23 and 1 (deducted once, in the service transaction — the trigger touches no inventory).
+2. New Sale: choose a customer, add Mixer ×2 and Window AC ×1 → Record sale. Invoice page shows DB prices and total, and "sold by" is the signed-in employee.
+3. Products page: stock now 23 and 1 if they started at 25 and 2 (deducted once, in the service transaction — the trigger touches no inventory).
 4. New Sale: Window AC ×5 → rejected, HTTP 409 "Insufficient stock"; stock unchanged (rolled back).
 5. SQL proof: `SELECT * FROM V_SALES_SUMMARY ORDER BY SALE_ID DESC;` → `TOTAL_MATCHES = Y`.
 
@@ -103,9 +107,9 @@ Explain: `SELECT … FOR UPDATE WAIT 10` in ascending product order (no deadlock
 
 ## 9. Testing evidence (0:45)
 
-📄 `python -m pytest tests -v` → unit + route tests PASSED; live tests listed as BLOCKED if no test schema is configured.
-🔌 With the test schema variables set (README §9): `python -m pytest tests\test_oracle_integration.py -v` — includes the 8-thread overselling test (exactly 5 of 8 purchases succeed when stock is 5).
-Show the matrix in `docs/Review_2_Report.md` §24 — statuses are generated from the real result file.
+📄 `python -m pytest tests -q` → 155 passed, 19 skipped (the 19 are live Oracle tests, skipped unless a test schema is configured).
+🔌 The live suite passed 19/19 on Oracle 21c XE on 2026-10-22 (the first run was 18/19: a mistake in one test, not in the app, fixed). It includes the 8-thread overselling test (exactly 5 of 8 purchases succeed when stock is 5). To re-run it live you must create a separate test user first (README §9); do not do this during the demo.
+Show the matrix in `docs/Review_2_Report.md` §24 (76 offline and 16 live Review 2 cases PASSED). The live rows are transcribed from your console output, and the report says so.
 
 ## 10. Likely questions
 
@@ -114,6 +118,6 @@ Show the matrix in `docs/Review_2_Report.md` §24 — statuses are generated fro
 - **How do you prevent overselling?** Row locks + stock re-check inside one transaction; CHECK `STOCK_QTY >= 0` is the last line of defence.
 - **Why not a trigger for stock deduction?** One deduction point (service) avoids double deduction and keeps logic testable.
 - **SQL injection?** Only bind variables; user text never concatenated; tested.
-- **Why no login?** Out of academic scope; documented limitation — run on localhost.
+- **Is there a login?** Yes, added after Review 2: Manager and Cashier roles (see the Review 3 report). Review 2's scope is the database and backend, which this guide demonstrates.
 - **Is it 3NF?** Yes — see report §14 for the functional dependencies per table.
-- **What did you not verify?** Whatever the testing matrix labels BLOCKED/NOT RUN; be explicit.
+- **What did you not verify?** Load testing, HTTPS and several-worker deployment, and a recorded browser walkthrough; the live database checks themselves were run (19/19 tests, 16/16 queries).
